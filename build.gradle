@@ -1,0 +1,72 @@
+plugins {
+    id 'java-gradle-plugin'
+    id 'groovy'
+    id "com.gradle.plugin-publish" version "0.9.10"
+    id "com.github.ethankhall.semantic-versioning" version "1.1.0"
+    id "com.github.ben-manes.versions" version "0.13.0"
+    id 'com.github.jk1.dependency-license-report' version '0.3.8'
+}
+
+project.version.with {
+    major = badassJarVersionMajor as int
+    minor= badassJarVersionMinor as int
+    patch = badassJarVersionPatch as int
+    if (project.hasProperty('badassJarVersionLabel')) {
+        preRelease = badassJarVersionLabel
+    }
+    releaseBuild = Boolean.valueOf(badassJarReleaseBuild)
+}
+ext.badassJarVersion = project.version as String
+ext.badassJarTag = Boolean.valueOf(badassJarReleaseBuild) ? "v$ext.badassJarVersion" : 'master'
+
+group = 'org.beryx'
+version = badassJarVersion
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+
+def defaultEncoding = 'UTF-8'
+[compileJava, compileTestJava]*.options*.encoding = defaultEncoding
+
+[compileGroovy, compileTestGroovy]*.options*.encoding = defaultEncoding
+[compileGroovy, compileTestGroovy]*.groovyOptions*.encoding = defaultEncoding
+
+sourceSets.main.java.srcDirs = []
+sourceSets.main.groovy.srcDirs = ["src/main/java", "src/main/groovy"]
+
+configurations {
+    compile {transitive = true}
+}
+
+dependencies {
+    compile gradleTestKit()
+    compile localGroovy()
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+
+    testCompile('org.spockframework:spock-core:1.1-groovy-2.4') {
+        exclude module: 'groovy-all'
+    }
+    testCompile 'cglib:cglib-nodep:3.2.4'
+    testCompile 'org.objenesis:objenesis:2.4'
+    testCompile('com.athaydes:spock-reports:1.2.13') { transitive = false}
+}
+
+gradlePlugin {
+    plugins {
+        badassJar {
+            id = 'org.beryx.jar'
+            implementationClass = 'org.beryx.jar.BadassJarPlugin'
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': "${project.archivesBaseName}",
+                'Implementation-Version': badassJarVersion
+    }
+}
