@@ -23,54 +23,102 @@ import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+
 class BadassJarPluginSpec extends Specification {
-    String createBuildContent(String input, String output) {
-        def inputCfg = input ? "badassJarInputProperty = \"$input\"" : ''
-        def outputCfg = output ? "badassJarOutputProperty = file(\"$output\")" : ''
-        def extension = (inputCfg || outputCfg) ?
-            """
-            badassJar {
-                $inputCfg
-                $outputCfg
-            }
-            """ : ''
-        return """
+    @Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
+
+    private static String createBuildContent(Boolean multiRelease, String sourceCompatibility) {
+        String content = """
             plugins {
+                id 'java'
                 id 'org.beryx.jar'
             }
-            $extension
+            sourceCompatibility = $sourceCompatibility
         """.stripIndent()
+        def multiReleaseCfg = (multiRelease == null) ? '' : """
+                jar {
+                    multiRelease = $multiRelease
+                }""".stripIndent()
+        return content + multiReleaseCfg
     }
 
-    def setUpBuild(String input = null, String output = null) {
+    private static String getLocation(File jarFile, String fileName) {
+        def zipFile = new ZipFile(jarFile)
+        ZipEntry entry = zipFile.entries().find() { it.name == fileName || it.name.endsWith("/$fileName")}
+        return entry ? entry.name - fileName : null
+    }
+
+    def setUpBuild(Boolean multiRelease, String sourceCompatibility, boolean hasModuleInfo) {
+        createJavaMain()
+        if(hasModuleInfo) createJavaModuleInfo()
+
         File buildFile = testProjectDir.newFile("build.gradle")
-        buildFile.text = createBuildContent(input, output)
+        buildFile.text = createBuildContent(multiRelease, sourceCompatibility)
         println "Executing build script:\n${buildFile.text}"
     }
 
-    @Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
-
-    @Unroll
-    def "should execute task with input=#input and output=#output"() {
-        when:
-        setUpBuild(input, output)
-        BuildResult result = GradleRunner.create()
-                .withProjectDir(testProjectDir.root)
-                .withPluginClasspath()
-                .withArguments(BadassJarPlugin.TASK_NAME, "-is")
-                .build();
-        def expectedOutputFile = new File("$testProjectDir.root.path/build/$expectedOutputFilePath")
-
-        then:
-        result.task(":$BadassJarPlugin.TASK_NAME").outcome == TaskOutcome.SUCCESS
-        expectedOutputFile.text == "badassJar: badassJarInputProperty = $expectedInputVal"
-
-        where:
-        input  | output                    || expectedInputVal                             | expectedOutputFilePath
-        null   | null                      || 'badassJarInputProperty-default-val' | "badassJar/badassJar-out.txt"
-        'val1' | null                      || 'val1'                                       | "badassJar/badassJar-out.txt"
-        null   | '$buildDir/dir2/out2.txt' || 'badassJarInputProperty-default-val' | "dir2/out2.txt"
-        'val3' | '$buildDir/dir3/out3.txt' || 'val3'                                       | "dir3/out3.txt"
+    private void createJavaMain() {
+        File srcDir = new File(testProjectDir.root, 'src/main/java/org/example/hello')
+        srcDir.mkdirs()
+        new File(srcDir, 'Hello.java').withPrintWriter {
+            it.print '''
+                package org.example.hello;
+                
+                public class Hello {
+                    public static void main(String[] args) {
+                        System.out.println("Hello!");
+                    }
+                }
+            '''.stripIndent()
+        }
     }
 
+    private void createJavaModuleInfo() {
+        File srcDir = new File(testProjectDir.root, 'src/main/java')
+        srcDir.mkdirs()
+        new File(srcDir, 'module-info.java').withPrintWriter {
+            it.print '''
+                module org.example.hello {
+                    exports org.example.hello;
+                }
+            '''.stripIndent()
+        }
+    }
+
+    @Unroll
+    def "create jar with multiRelease=#multiRelease, sourceCompatibility=#sourceCompatibility, hasModuleInfo=#hasModuleInfo"() {
+        when:
+        setUpBuild(multiRelease, sourceCompatibility, hasModuleInfo)
+        def runner = GradleRunner.create()
+        BuildResult result = runner
+                .withProjectDir(testProjectDir.root)
+                .withPluginClasspath()
+                .withArguments('jar', "-is")
+                .build();
+        def jarFile = new File("$runner.projectDir/build/libs").listFiles()[0]
+        def output = result.output
+        def notUsed = output.contains('badass-jar not used')
+
+        then:
+        result.task(":jar").outcome == TaskOutcome.SUCCESS
+        getLocation(jarFile, 'module-info.class') == expectedModuleInfoLocation
+        notUsed == !badassJarUsed
+
+        where:
+        multiRelease | sourceCompatibility | hasModuleInfo || badassJarUsed | expectedModuleInfoLocation
+        null         | '1.7'               | true          || true          | 'META-INF/versions/9/'
+        true         | '1.8'               | true          || true          | 'META-INF/versions/9/'
+        false        | '1.8'               | true          || true          | ''
+        null         | '9'                 | true          || false         | ''
+        true         | '10'                | true          || false         | ''
+        false        | '11'                | true          || false         | ''
+        null         | '1.7'               | false         || false         | null
+        true         | '1.8'               | false         || false         | null
+        false        | '1.8'               | false         || false         | null
+        null         | '9'                 | false         || false         | null
+        true         | '10'                | false         || false         | null
+        false        | '11'                | false         || false         | null
+    }
 }

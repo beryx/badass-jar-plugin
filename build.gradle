@@ -1,10 +1,12 @@
 plugins {
     id 'java-gradle-plugin'
+    id 'com.github.johnrengelman.plugin-shadow' version '2.0.3'
     id 'groovy'
     id "com.gradle.plugin-publish" version "0.9.10"
     id "com.github.ethankhall.semantic-versioning" version "1.1.0"
     id "com.github.ben-manes.versions" version "0.13.0"
     id 'com.github.jk1.dependency-license-report' version '0.3.8'
+    id "com.github.hierynomus.license" version "0.14.0"
 }
 
 project.version.with {
@@ -21,6 +23,8 @@ ext.badassJarTag = Boolean.valueOf(badassJarReleaseBuild) ? "v$ext.badassJarVers
 
 group = 'org.beryx'
 version = badassJarVersion
+
+ext.asmVersion = '7.0'
 
 repositories {
     jcenter()
@@ -43,9 +47,16 @@ configurations {
 }
 
 dependencies {
-    compile gradleTestKit()
-    compile localGroovy()
+    shadow gradleTestKit()
+    shadow localGroovy()
+
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    compile 'com.github.javaparser:javaparser-core:3.6.0'
+    compile "org.ow2.asm:asm:$asmVersion"
+    compile "org.ow2.asm:asm-commons:$asmVersion"
+    compile "org.ow2.asm:asm-tree:$asmVersion"
+    compile "org.ow2.asm:asm-util:$asmVersion"
+    compile "org.ow2.asm:asm-analysis:$asmVersion"
 
     testCompile('org.spockframework:spock-core:1.1-groovy-2.4') {
         exclude module: 'groovy-all'
@@ -69,4 +80,12 @@ jar {
         attributes 'Implementation-Title': "${project.archivesBaseName}",
                 'Implementation-Version': badassJarVersion
     }
+}
+
+license {
+    header rootProject.file("license-header.txt")
+    skipExistingHeaders true
+    ignoreFailures false
+
+    excludes(['**/*.properties'])
 }
