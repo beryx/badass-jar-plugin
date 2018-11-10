@@ -25,6 +25,7 @@ import spock.lang.Unroll
 
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 
 class BadassJarPluginSpec extends Specification {
     @Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
@@ -48,6 +49,17 @@ class BadassJarPluginSpec extends Specification {
         def zipFile = new ZipFile(jarFile)
         ZipEntry entry = zipFile.entries().find() { it.name == fileName || it.name.endsWith("/$fileName")}
         return entry ? entry.name - fileName : null
+    }
+
+    private static String getManifest(File jarFile) {
+        def zstream = new ZipInputStream(jarFile.newInputStream())
+        ZipEntry entry
+        while(entry = zstream.nextEntry) {
+            if(entry.name == 'META-INF/MANIFEST.MF') {
+                return zstream.text
+            }
+        }
+        assert false: "MANIFEST.MF not found in $jarFile"
     }
 
     def setUpBuild(Boolean multiRelease, String sourceCompatibility, boolean hasModuleInfo) {
@@ -105,20 +117,21 @@ class BadassJarPluginSpec extends Specification {
         result.task(":jar").outcome == TaskOutcome.SUCCESS
         getLocation(jarFile, 'module-info.class') == expectedModuleInfoLocation
         notUsed == !badassJarUsed
+        getManifest(jarFile).contains('Multi-Release: true') == multiReleaseManifest
 
         where:
-        multiRelease | sourceCompatibility | hasModuleInfo || badassJarUsed | expectedModuleInfoLocation
-        null         | '1.7'               | true          || true          | 'META-INF/versions/9/'
-        true         | '1.8'               | true          || true          | 'META-INF/versions/9/'
-        false        | '1.8'               | true          || true          | ''
-        null         | '9'                 | true          || false         | ''
-        true         | '10'                | true          || false         | ''
-        false        | '11'                | true          || false         | ''
-        null         | '1.7'               | false         || false         | null
-        true         | '1.8'               | false         || false         | null
-        false        | '1.8'               | false         || false         | null
-        null         | '9'                 | false         || false         | null
-        true         | '10'                | false         || false         | null
-        false        | '11'                | false         || false         | null
+        multiRelease | sourceCompatibility | hasModuleInfo || badassJarUsed | expectedModuleInfoLocation | multiReleaseManifest
+        null         | '1.7'               | true          || true          | 'META-INF/versions/9/'     | true
+        true         | '1.8'               | true          || true          | 'META-INF/versions/9/'     | true
+        false        | '1.8'               | true          || true          | ''                         | false
+        null         | '9'                 | true          || false         | ''                         | false
+        true         | '10'                | true          || false         | ''                         | false
+        false        | '11'                | true          || false         | ''                         | false
+        null         | '1.7'               | false         || false         | null                       | false
+        true         | '1.8'               | false         || false         | null                       | false
+        false        | '1.8'               | false         || false         | null                       | false
+        null         | '9'                 | false         || false         | null                       | false
+        true         | '10'                | false         || false         | null                       | false
+        false        | '11'                | false         || false         | null                       | false
     }
 }

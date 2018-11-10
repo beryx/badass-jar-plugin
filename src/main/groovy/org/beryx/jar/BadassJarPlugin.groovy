@@ -16,7 +16,6 @@
 package org.beryx.jar
 
 import com.github.javaparser.ast.modules.ModuleDeclaration
-import groovy.transform.CompileStatic
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -43,9 +42,8 @@ class BadassJarPlugin implements Plugin<Project> {
                                 project.logger.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
                             } else {
                                 project.logger.debug "module-info.java found in $moduleInfoDir"
-                                project.logger.debug "multiRelease: $jarTask.multiRelease"
-                                def moduleInfoSource = new File(moduleInfoDir, 'module-info.java').text
-                                createModuleDescriptor(project, moduleInfoSource, jarTask.multiRelease, project.sourceSets.main.java.outputDir)
+                                String moduleInfoSource = new File(moduleInfoDir, 'module-info.java').text
+                                createModuleDescriptor(project, moduleInfoSource, jarTask, project.sourceSets.main.java.outputDir)
                             }
                         }
                     } else {
@@ -56,13 +54,17 @@ class BadassJarPlugin implements Plugin<Project> {
         }
     }
 
-    @CompileStatic
-    File createModuleDescriptor(Project project, String moduleInfoSource, boolean multiRelease, File targetBaseDir) {
-        def comp = new ModuleInfoCompiler()
+    File createModuleDescriptor(Project project, String moduleInfoSource, Jar jarTask, File targetBaseDir) {
         ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource);
         byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, null);
         project.logger.debug "Module info compiled: $clazz.length bytes"
-        def targetDir = multiRelease ? new File(targetBaseDir, 'META-INF/versions/9') : targetBaseDir
+        project.logger.debug "multiRelease: $jarTask.multiRelease"
+        if(jarTask.multiRelease) {
+            jarTask.manifest {
+                attributes('Multi-Release': true)
+            }
+        }
+        def targetDir = jarTask.multiRelease ? new File(targetBaseDir, 'META-INF/versions/9') : targetBaseDir
         targetDir.mkdirs()
         def moduleDescriptor = new File(targetDir, 'module-info.class')
         project.logger.info "Writing module descriptor into $moduleDescriptor"
