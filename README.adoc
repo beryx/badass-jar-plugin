@@ -1,3 +1,7 @@
+http://makeapullrequest.com:[image:https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square[PRs Welcome]]
+https://github.com/beryx/badass-jar-plugin/blob/master/LICENSE[image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[License]]
+https://travis-ci.org/beryx/badass-jar-plugin[image:https://img.shields.io/travis/beryx/badass-jar-plugin/master.svg?label=Build[Build Status]]
+
 == Badass Jar Plugin
 
 Using this plugin you can seamlessly create modular jars compatible with pre-Java 9 versions.
