@@ -75,6 +75,21 @@ gradlePlugin {
     }
 }
 
+pluginBundle {
+    website = 'https://github.com/beryx/badass-jar-plugin/'
+    vcsUrl = 'https://github.com/beryx/badass-jar-plugin'
+    description = 'A Gradle plugin that lets you create modular jars compatible with pre-Java 9 versions'
+    tags = ['jar', 'jpms', 'module-info']
+
+    plugins {
+        jlink {
+            id = 'org.beryx.jar'
+            displayName = 'Badass Jar Plugin'
+        }
+    }
+}
+
+
 jar {
     manifest {
         attributes 'Implementation-Title': "${project.archivesBaseName}",
