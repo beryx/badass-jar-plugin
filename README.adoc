@@ -1,0 +1,35 @@
+== Badass Jar Plugin
+
+Using this plugin you can seamlessly create modular jars compatible with pre-Java 9 versions.
+This way, your library can be used by people who are still using Java 8 or older versions,
+as well as by people who build JPMS applications.
+
+
+=== Prerequisites
+The plugin works with Gradle 4 and 5 as shown in the table below:
+
+|====
+| Gradle | Java runtime | Source and target compatibility
+|4.0+ | 7+ | 1.2+
+|5.0+ | 8+ | 1.6+
+|====
+
+Note that your build can use Java 7 or 8, although it produces a modular jar.
+This is possible because the module descriptors are assembled using ASM.
+
+
+=== Usage
+[source,groovy]
+----
+plugins {
+    id 'java'
+    id 'org.beryx.jar'
+}
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+----
+
+=== Acknowledgements
+
+This plugin was heavily inspired by and includes code from
+Gunnar Morling's https://github.com/moditect/moditect#adding-a-module-descriptor-to-the-project-jar[moditect] tool.
