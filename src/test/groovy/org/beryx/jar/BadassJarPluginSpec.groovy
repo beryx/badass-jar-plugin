@@ -37,6 +37,7 @@ class BadassJarPluginSpec extends Specification {
                 id 'org.beryx.jar'
             }
             sourceCompatibility = $sourceCompatibility
+            javaModule.allowModuleNamingViolations = true
         """.stripIndent()
         def multiReleaseCfg = (multiRelease == null) ? '' : """
                 jar {
@@ -100,14 +101,14 @@ class BadassJarPluginSpec extends Specification {
     }
 
     @Unroll
-    def "create jar with multiRelease=#multiRelease, sourceCompatibility=#sourceCompatibility, hasModuleInfo=#hasModuleInfo"() {
+    def "create jar with multiRelease=#multiRelease, sourceCompatibility=#sourceCompatibility, javaCompatibility=#javaCompatibility, hasModuleInfo=#hasModuleInfo"() {
         when:
         setUpBuild(multiRelease, sourceCompatibility, hasModuleInfo)
         def runner = GradleRunner.create()
         BuildResult result = runner
                 .withProjectDir(testProjectDir.root)
                 .withPluginClasspath()
-                .withArguments('jar', "-is")
+                .withArguments(['jar', '-is'] + (javaCompatibility ? ["-PjavaCompatibility=$javaCompatibility" as String] : []))
                 .build();
         def jarFile = new File("$runner.projectDir/build/libs").listFiles()[0]
         def output = result.output
@@ -120,18 +121,24 @@ class BadassJarPluginSpec extends Specification {
         getManifest(jarFile).contains('Multi-Release: true') == multiReleaseManifest
 
         where:
-        multiRelease | sourceCompatibility | hasModuleInfo || badassJarUsed | expectedModuleInfoLocation | multiReleaseManifest
-        null         | '1.7'               | true          || true          | 'META-INF/versions/9/'     | true
-        true         | '1.8'               | true          || true          | 'META-INF/versions/9/'     | true
-        false        | '1.8'               | true          || true          | ''                         | false
-        null         | '9'                 | true          || false         | ''                         | false
-        true         | '10'                | true          || false         | ''                         | false
-        false        | '11'                | true          || false         | ''                         | false
-        null         | '1.7'               | false         || false         | null                       | false
-        true         | '1.8'               | false         || false         | null                       | false
-        false        | '1.8'               | false         || false         | null                       | false
-        null         | '9'                 | false         || false         | null                       | false
-        true         | '10'                | false         || false         | null                       | false
-        false        | '11'                | false         || false         | null                       | false
+        multiRelease | sourceCompatibility | javaCompatibility | hasModuleInfo || badassJarUsed | expectedModuleInfoLocation | multiReleaseManifest
+        null         | '1.7'               | null              | true          || true          | 'META-INF/versions/9/'     | true
+        true         | '1.8'               | null              | true          || true          | 'META-INF/versions/9/'     | true
+        false        | '1.8'               | null              | true          || true          | ''                         | false
+        null         | '9'                 | null              | true          || false         | ''                         | false
+        true         | '10'                | null              | true          || false         | ''                         | false
+        false        | '11'                | null              | true          || false         | ''                         | false
+        null         | '1.7'               | null              | false         || false         | null                       | false
+        true         | '1.8'               | null              | false         || false         | null                       | false
+        false        | '1.8'               | null              | false         || false         | null                       | false
+        null         | '9'                 | null              | false         || false         | null                       | false
+        true         | '10'                | null              | false         || false         | null                       | false
+        false        | '11'                | null              | false         || false         | null                       | false
+        null         | '1.7'               | '11'              | true          || false         | ''                         | false
+        true         | '1.8'               | '1.10'            | true          || false         | ''                         | false
+        false        | '1.8'               | '1.9'             | true          || false         | ''                         | false
+        null         | '9'                 | '1.7'             | true          || true          | 'META-INF/versions/9/'     | true
+        true         | '10'                | '1.8'             | true          || true          | 'META-INF/versions/9/'     | true
+        false        | '11'                | '1.8'             | true          || true          | ''                         | false
     }
 }

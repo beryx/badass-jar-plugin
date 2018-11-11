@@ -16,6 +16,7 @@
 package org.beryx.jar
 
 import com.github.javaparser.ast.modules.ModuleDeclaration
+import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -24,6 +25,7 @@ import org.gradle.jvm.tasks.Jar
 class BadassJarPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
+        project.getPluginManager().apply(BadassChainsawPlugin);
         project.tasks.withType(Jar) { Jar jarTask ->
             if(jarTask.name == 'jar') {
                 jarTask.metaClass.multiRelease = true
@@ -33,6 +35,15 @@ class BadassJarPlugin implements Plugin<Project> {
         project.afterEvaluate {
             project.tasks.withType(Jar) { Jar jarTask ->
                 if(jarTask.name == 'jar') {
+                    if(project.hasProperty('javaCompatibility')) {
+                        def javaVersion = JavaVersion.toVersion(project.javaCompatibility)
+                        if(!javaVersion) throw new GradleException("Invalid value for javaCompatibility: $project.javaCompatibility")
+                        project.sourceCompatibility = javaVersion
+                        project.targetCompatibility = javaVersion
+                        project.logger.info "javaCompatibility: $javaVersion"
+                    } else {
+                        project.logger.debug "javaCompatibility not set"
+                    }
                     project.logger.debug "sourceCompatibility: ${project.sourceCompatibility}; targetCompatibility: ${project.targetCompatibility}"
                     if(project.sourceCompatibility <= JavaVersion.VERSION_1_8 && project.targetCompatibility <= JavaVersion.VERSION_1_8) {
                         project.sourceSets.main.java.exclude '**/module-info.java'
