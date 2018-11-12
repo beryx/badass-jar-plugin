@@ -27,13 +27,15 @@ import org.gradle.api.plugins.JavaPluginConvention
 class BadassChainsawPlugin extends ChainsawPlugin {
     @Override
     void apply(Project project) {
-        project.logger.debug("Applying BadassChainsawPlugin to " + project.getName());
+        project.logger.info("Applying BadassChainsawPlugin to " + project.getName());
         Configuration cfg = project.getConfigurations().create(PATCH_CONFIGURATION_NAME);
         cfg.setDescription("Dependencies that break Java Module System rules and need to be added as patches to other modules.");
         project.getExtensions().create('javaModule', JavaModule.class);
         project.afterEvaluate {
+            Util.adjustCompatibility(project)
             def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
             if(moduleInfoDir && (project.sourceCompatibility >= JavaVersion.VERSION_1_9 || project.targetCompatibility >= JavaVersion.VERSION_1_9)) {
+                project.logger.info("ChainsawPlugin enabled: moduleInfoDir = $moduleInfoDir, sourceCompatibility = $project.sourceCompatibility targetCompatibility = $project.targetCompatibility")
                 JavaPluginConvention javaConfig = project.getConvention().getPlugin(JavaPluginConvention.class);
                 ModuleNameDetector detector = new ModuleNameDetector(javaConfig.getSourceCompatibility());
 
@@ -42,8 +44,9 @@ class BadassChainsawPlugin extends ChainsawPlugin {
 
                 ChainsawPlugin.metaClass.getMetaMethod('removePatchedDependencies',project, cfg).invoke(this,project, cfg)
                 ChainsawPlugin.metaClass.getMetaMethod('configureJavaTasks', project, detector).invoke(this, project, detector)
-
-            }
+            } else [
+                project.logger.info('ChainsawPlugin disabled.')
+            ]
         }
     }
 }
