@@ -4,9 +4,8 @@ https://travis-ci.org/beryx/badass-jar-plugin[image:https://img.shields.io/travi
 
 == Badass Jar Plugin
 
-Using this plugin you can seamlessly create modular jars compatible with pre-Java 9 versions.
-This way, your library can be used by people who are still using Java 8 or older versions,
-as well as by people who build JPMS applications.
+This plugin lets you seamlessly create modular jars that target a Java release before 9.
+This way, your library can be used not only by people who build JPMS applications, but also by people who are still using Java 8 or older releases.
 
 
 === Prerequisites
@@ -19,10 +18,12 @@ The plugin works with Gradle 4 and 5 as shown in the table below:
 |====
 
 Note that your build can use Java 7 or 8, although it produces a modular jar.
-This is possible because the module descriptors are assembled using ASM.
+This is possible because the plugin assembles the module descriptors without using the java compiler.
 
 
-=== Usage
+=== Quick start
+
+Put the following in your `build.gradle`:
 [source,groovy]
 ----
 plugins {
@@ -32,6 +33,67 @@ plugins {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 ----
+
+To create your modular jar execute:
+----
+./gradlew jar
+----
+
+=== Usage
+
+To make your library modular, you need to provide a `module-info.java` in the project's root source directory.
+The plugin uses the https://github.com/javaparser/javaparser[JavaParser] to analyze this file and
+the https://asm.ow2.io/[ASM] bytecode manipulation framework to generate the corresponding module descriptor.
+
+This approach has the advantage that you don't need a Java 9+ compiler to build your modular jar.
+The downside is that it cannot validate your module descriptor.
+References to nonexistent packages, modules, services, or service implementations go undetected.
+
+Therefore, it is strongly advised to ensure the validity of your module descriptor by additionally building your
+project using a Java 9+ compiler with the `sourceCompatibility` and `targetCompatibility` set accordingly.
+The good news is that you don't need to change your build script in order to do this.
+The plugin lets you override the `sourceCompatibility` and `targetCompatibility` values by setting the
+project property `javaCompatibility`:
+
+----
+./gradlew -PjavaCompatibility=9 jar
+----
+
+Note that this project property overrides both `sourceCompatibility` and `targetCompatibility` with the same value.
+
+If the plugin detects that at least one of `sourceCompatibility` and `targetCompatibility` has an effective value >= 9,
+it automatically applies the https://github.com/zyxist/chainsaw[Chainsaw plugin], which adds support for the JPMS.
+That's why no changes are required to your build script when running in Java 9+ compatibility mode.
+
+NOTE: In the discussion above we considered that `sourceCompatibility` and `targetCompatibility` are
+configured with pre-Java 9 values in `build.gradle` and you override them with 9+ values using the
+`javaCompatibility` project property. +
+You can also work the other way around: set `sourceCompatibility` and `targetCompatibility` with 9+ values
+in `build.gradle` and override them with a pre-Java 9 value (via `javaCompatibility`) in order to generate
+a modular jar targeted to Java releases before 9. +
+Both approaches have their pros and cons.
+Choose the one that suits you the most.
+
+Typically, a https://openjdk.java.net/projects/jigsaw/spec/sotms/#module-artifacts[modular jar]
+includes the `module-info.class` file in its root directory.
+This causes problems for some older tools, which incorrectly process the module descriptor as if it were a normal Java class.
+To provide the best backward compatibility, the plugin creates by default a
+https://openjdk.java.net/jeps/238#Modular-multi-release-JAR-files[modular multi-release jar]
+with the `module-info.class` file located in `META-INF/versions/9`, as shown below.
+
+image:https://raw.githubusercontent.com/beryx/badass-jar-plugin/master/doc/multi-release-jar.png[multi-release-jar,822,300]
+
+You can prevent the creation of a multi-release jar by setting `multiRelease` to `false` in the `jar` section of your build script:
+
+[source,groovy]
+----
+jar {
+    ...
+    multiRelease = false
+    ...
+}
+----
+
 
 === Acknowledgements
 
