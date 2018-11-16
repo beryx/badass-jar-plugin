@@ -1,3 +1,23 @@
+// Settings:
+:idprefix:
+:idseparator: -
+ifndef::env-github[:icons: font]
+ifdef::env-github,env-browser[]
+:toc: macro
+:toclevels: 1
+endif::[]
+ifdef::env-github[]
+:branch: master
+:status:
+:outfilesuffix: .adoc
+:!toc-title:
+:caution-caption: :fire:
+:important-caption: :exclamation:
+:note-caption: :paperclip:
+:tip-caption: :bulb:
+:warning-caption: :warning:
+endif::[]
+
 http://makeapullrequest.com:[image:https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square[PRs Welcome]]
 https://github.com/beryx/badass-jar-plugin/blob/master/LICENSE[image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[License]]
 https://travis-ci.org/beryx/badass-jar-plugin[image:https://img.shields.io/travis/beryx/badass-jar-plugin/master.svg?label=Build[Build Status]]
@@ -65,7 +85,7 @@ If the plugin detects that at least one of `sourceCompatibility` and `targetComp
 it automatically applies the https://github.com/zyxist/chainsaw[Chainsaw plugin], which adds support for the JPMS.
 That's why no changes are required to your build script when running in Java 9+ compatibility mode.
 
-NOTE: In the discussion above we considered that `sourceCompatibility` and `targetCompatibility` are
+TIP: In the discussion above we considered that `sourceCompatibility` and `targetCompatibility` are
 configured with pre-Java 9 values in `build.gradle` and you override them with 9+ values using the
 `javaCompatibility` project property. +
 You can also work the other way around: set `sourceCompatibility` and `targetCompatibility` with 9+ values
@@ -81,7 +101,7 @@ To provide the best backward compatibility, the plugin creates by default a
 https://openjdk.java.net/jeps/238#Modular-multi-release-JAR-files[modular multi-release jar]
 with the `module-info.class` file located in `META-INF/versions/9`, as shown below.
 
-image:https://raw.githubusercontent.com/beryx/badass-jar-plugin/master/doc/multi-release-jar.png[multi-release-jar,822,300]
+image:https://raw.githubusercontent.com/beryx/badass-jar-plugin/master/doc/multi-release-jar.png[multi-release-jar,548,200]
 
 You can prevent the creation of a multi-release jar by setting `multiRelease` to `false` in the `jar` section of your build script:
 
