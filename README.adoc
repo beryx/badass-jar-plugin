@@ -114,6 +114,10 @@ jar {
 }
 ----
 
+=== Examples
+
+The following projects illustrate how to use this plugin to create modular jars targeted to pre-Java 9 releases:
+- [badass-jar-example-nqueens](https://github.com/beryx-gist/badass-jar-example-nqueens): a library for solving the N-Queens problem.
 
 === Acknowledgements
 
