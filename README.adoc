@@ -48,7 +48,7 @@ Put the following in your `build.gradle`:
 ----
 plugins {
     id 'java'
-    id 'org.beryx.jar'
+    id 'org.beryx.jar' version '1.0.0'
 }
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -118,7 +118,8 @@ jar {
 
 The following projects illustrate how to use this plugin to create modular jars targeted to pre-Java 9 releases:
 
-- https://github.com/beryx-gist/badass-jar-example-nqueens[badass-jar-example-nqueens]: a library for solving the N-Queens problem.
+- https://github.com/beryx-gist/badass-jar-example-nqueens[badass-jar-example-nqueens]: a Java library for solving the N-Queens problem.
+- https://github.com/beryx-gist/badass-jar-example-nqueens-kotlin[badass-jar-example-nqueens-kotlin]: a Kotlin library for solving the N-Queens problem.
 
 === Acknowledgements
 
