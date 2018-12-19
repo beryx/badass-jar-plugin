@@ -82,7 +82,7 @@ project property `javaCompatibility`:
 Note that this project property overrides both `sourceCompatibility` and `targetCompatibility` with the same value.
 
 If the plugin detects that at least one of `sourceCompatibility` and `targetCompatibility` has an effective value >= 9,
-it automatically applies the https://github.com/zyxist/chainsaw[Chainsaw plugin], which adds support for the JPMS.
+it automatically applies the https://github.com/java9-modularity/gradle-modules-plugin[gradle-modules-plugin], which adds support for the JPMS.
 That's why no changes are required to your build script when running in Java 9+ compatibility mode.
 
 TIP: In the discussion above we considered that `sourceCompatibility` and `targetCompatibility` are

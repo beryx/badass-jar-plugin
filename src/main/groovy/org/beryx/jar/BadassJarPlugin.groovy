@@ -25,7 +25,7 @@ import org.gradle.jvm.tasks.Jar
 class BadassJarPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
-        project.getPluginManager().apply(BadassChainsawPlugin);
+        applyModuleSystemPlugin(project)
         project.tasks.withType(Jar) { Jar jarTask ->
             if(jarTask.name == 'jar') {
                 jarTask.metaClass.multiRelease = true
@@ -72,5 +72,33 @@ class BadassJarPlugin implements Plugin<Project> {
         project.logger.info "Writing module descriptor into $moduleDescriptor"
         moduleDescriptor.withOutputStream { it.write(clazz) }
         moduleDescriptor
+    }
+
+    private applyModuleSystemPlugin(Project project) {
+        project.logger.info("Applying BadassModuleSystemPlugin to " + project.getName());
+        project.afterEvaluate {
+            Util.adjustCompatibility(project)
+            def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
+            if(moduleInfoDir && (project.sourceCompatibility >= JavaVersion.VERSION_1_9 || project.targetCompatibility >= JavaVersion.VERSION_1_9)) {
+                if(javaVersion < 11) {
+                    throw new GradleException("You need Java 11 or newer to execute the plugin on the module-path.")
+                }
+                Class msPluginClass = Class.forName('org.javamodularity.moduleplugin.ModuleSystemPlugin')
+                project.getPluginManager().apply(msPluginClass);
+                project.logger.info("ModuleSystemPlugin enabled: moduleInfoDir = $moduleInfoDir, sourceCompatibility = $project.sourceCompatibility targetCompatibility = $project.targetCompatibility")
+            } else [
+                    project.logger.info('ModuleSystemPlugin disabled.')
+            ]
+        }
+
+    }
+
+    static int getJavaVersion() {
+        double javaVersion = (System.properties['java.specification.version'] ?: 1.0) as double
+        if(1.2 <= javaVersion && javaVersion < 2) {
+            return Math.round(10 * javaVersion) % 10
+        } else {
+            return (int)javaVersion
+        }
     }
 }

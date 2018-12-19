@@ -37,7 +37,6 @@ class BadassJarPluginSpec extends Specification {
                 id 'org.beryx.jar'
             }
             sourceCompatibility = $sourceCompatibility
-            javaModule.allowModuleNamingViolations = true
         """.stripIndent()
         def multiReleaseCfg = (multiRelease == null) ? '' : """
                 jar {

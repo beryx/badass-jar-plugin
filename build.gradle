@@ -53,7 +53,7 @@ dependencies {
     shadow gradleTestKit()
     shadow localGroovy()
 
-    compile 'gradle.plugin.com.zyxist:chainsaw:0.3.1'
+    compile 'gradle.plugin.org.javamodularity:moduleplugin:1.1.0'
 
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     compile 'com.github.javaparser:javaparser-core:3.6.0'
