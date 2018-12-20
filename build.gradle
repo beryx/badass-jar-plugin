@@ -1,6 +1,8 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation
+
 plugins {
     id 'java-gradle-plugin'
-    id 'com.github.johnrengelman.plugin-shadow' version '2.0.3'
+    id 'com.github.johnrengelman.shadow' version '4.0.3'
     id 'groovy'
     id "com.gradle.plugin-publish" version "0.9.10"
     id "com.github.ethankhall.semantic-versioning" version "1.1.0"
@@ -47,6 +49,7 @@ sourceSets.main.groovy.srcDirs = ["src/main/java", "src/main/groovy"]
 
 configurations {
     compile {transitive = true}
+    relocated
 }
 
 dependencies {
@@ -56,6 +59,7 @@ dependencies {
     compile 'gradle.plugin.org.javamodularity:moduleplugin:1.1.0'
 
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    relocated 'com.github.javaparser:javaparser-core:3.6.0'
     compile 'com.github.javaparser:javaparser-core:3.6.0'
     compile "org.ow2.asm:asm:$asmVersion"
     compile "org.ow2.asm:asm-commons:$asmVersion"
@@ -70,6 +74,18 @@ dependencies {
     testCompile 'org.objenesis:objenesis:2.4'
     testCompile('com.athaydes:spock-reports:1.2.13') { transitive = false}
 }
+
+shadowJar {
+    configurations = [project.configurations.relocated]
+    classifier = null
+}
+task relocateShadowJar(type: ConfigureShadowRelocation) {
+    target = tasks.shadowJar
+    prefix = "shadow.org.beryx.jar"
+}
+tasks.shadowJar.dependsOn tasks.relocateShadowJar
+tasks.assemble.dependsOn tasks.shadowJar
+tasks.publishPlugins.dependsOn tasks.assemble
 
 gradlePlugin {
     plugins {
