@@ -47,23 +47,22 @@ sourceSets.main.java.srcDirs = []
 sourceSets.main.groovy.srcDirs = ["src/main/java", "src/main/groovy"]
 
 configurations {
-    compile {transitive = true}
-    relocated
+    plugin.description = 'Plugin\'s dependencies'
+    compile.extendsFrom plugin
 }
 
 dependencies {
-    shadow gradleTestKit()
-    shadow localGroovy()
+    implementation gradleTestKit()
+    implementation localGroovy()
 
-    compile 'org.javamodularity:moduleplugin:1.4.0'
+    implementation 'org.javamodularity:moduleplugin:1.4.0'
 
-    relocated 'com.github.javaparser:javaparser-core:3.6.0'
-    compile 'com.github.javaparser:javaparser-core:3.6.0'
-    compile "org.ow2.asm:asm:$asmVersion"
-    compile "org.ow2.asm:asm-commons:$asmVersion"
-    compile "org.ow2.asm:asm-tree:$asmVersion"
-    compile "org.ow2.asm:asm-util:$asmVersion"
-    compile "org.ow2.asm:asm-analysis:$asmVersion"
+    plugin 'com.github.javaparser:javaparser-core:3.6.0'
+    plugin "org.ow2.asm:asm:$asmVersion"
+    plugin "org.ow2.asm:asm-commons:$asmVersion"
+    plugin "org.ow2.asm:asm-tree:$asmVersion"
+    plugin "org.ow2.asm:asm-util:$asmVersion"
+    plugin "org.ow2.asm:asm-analysis:$asmVersion"
 
     testCompile('org.spockframework:spock-core:1.1-groovy-2.4') {
         exclude module: 'groovy-all'
@@ -74,16 +73,22 @@ dependencies {
 }
 
 shadowJar {
-    configurations = [project.configurations.relocated]
+    configurations = [project.configurations.plugin]
     classifier = null
+    dependencies {
+        include(dependency('com.github.javaparser:javaparser-core:3.6.0'))
+        include(dependency("org.ow2.asm:asm:$asmVersion"))
+        include(dependency("org.ow2.asm:asm-commons:$asmVersion"))
+        include(dependency("org.ow2.asm:asm-tree:$asmVersion"))
+        include(dependency("org.ow2.asm:asm-util:$asmVersion"))
+        include(dependency("org.ow2.asm:asm-anaysis:$asmVersion"))
+    }
+    relocate 'com.github.javaparser', 'org.beryx.jar.shadow.javaparser'
+    relocate 'org.objectweb.asm', 'org.beryx.jar.shadow.asm'
 }
-task relocateShadowJar(type: ConfigureShadowRelocation) {
-    target = tasks.shadowJar
-    prefix = "shadow.org.beryx.jar"
-}
-tasks.shadowJar.dependsOn tasks.relocateShadowJar
-tasks.assemble.dependsOn tasks.shadowJar
-tasks.publishPlugins.dependsOn tasks.assemble
+
+jar.enabled = false
+jar.dependsOn shadowJar
 
 gradlePlugin {
     plugins {
