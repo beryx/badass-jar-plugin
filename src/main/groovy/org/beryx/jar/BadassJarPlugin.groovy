@@ -29,6 +29,7 @@ class BadassJarPlugin implements Plugin<Project> {
         project.tasks.withType(Jar) { Jar jarTask ->
             if(jarTask.name == 'jar') {
                 jarTask.metaClass.multiRelease = true
+                jarTask.metaClass.moduleInfoPath = ''
             }
         }
 
@@ -39,13 +40,21 @@ class BadassJarPlugin implements Plugin<Project> {
                     if(project.sourceCompatibility <= JavaVersion.VERSION_1_8 && project.targetCompatibility <= JavaVersion.VERSION_1_8) {
                         project.sourceSets.main.java.exclude '**/module-info.java'
                         jarTask.doFirst {
-                            def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
-                            if(!moduleInfoDir) {
-                                project.logger.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
+                            File moduleInfoFile = null
+                            if(jarTask.moduleInfoPath) {
+                                moduleInfoFile = project.file(jarTask.moduleInfoPath)
+                                if(!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
                             } else {
-                                project.logger.debug "module-info.java found in $moduleInfoDir"
-                                String moduleInfoSource = new File(moduleInfoDir, 'module-info.java').text
-                                createModuleDescriptor(project, moduleInfoSource, jarTask, project.sourceSets.main.java.outputDir)
+                                def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
+                                if(!moduleInfoDir) {
+                                    project.logger.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
+                                } else {
+                                    project.logger.debug "module-info.java found in $moduleInfoDir"
+                                    moduleInfoFile = new File(moduleInfoDir, 'module-info.java')
+                                }
+                            }
+                            if(moduleInfoFile) {
+                                createModuleDescriptor(project, moduleInfoFile.text, jarTask, project.sourceSets.main.java.outputDir)
                             }
                         }
                     } else {

@@ -36,6 +36,7 @@
  */
 package org.beryx.jar;
 
+import static com.github.javaparser.ParserConfiguration.LanguageLevel.*;
 import static org.objectweb.asm.Opcodes.ACC_MANDATED;
 import static org.objectweb.asm.Opcodes.ACC_MODULE;
 import static org.objectweb.asm.Opcodes.ACC_OPEN;
@@ -44,34 +45,48 @@ import static org.objectweb.asm.Opcodes.ACC_SYNTHETIC;
 import static org.objectweb.asm.Opcodes.ACC_TRANSITIVE;
 import static org.objectweb.asm.Opcodes.V9;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Iterator;
 
-import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.nodeTypes.NodeWithModifiers;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ModuleVisitor;
 
-import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.modules.ModuleDeclaration;
-import com.github.javaparser.ast.modules.ModuleExportsStmt;
-import com.github.javaparser.ast.modules.ModuleOpensStmt;
-import com.github.javaparser.ast.modules.ModuleProvidesStmt;
-import com.github.javaparser.ast.modules.ModuleRequiresStmt;
-import com.github.javaparser.ast.modules.ModuleUsesStmt;
-import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.modules.ModuleExportsDirective;
+import com.github.javaparser.ast.modules.ModuleOpensDirective;
+import com.github.javaparser.ast.modules.ModuleProvidesDirective;
+import com.github.javaparser.ast.modules.ModuleRequiresDirective;
+import com.github.javaparser.ast.modules.ModuleUsesDirective;
 
 public class ModuleInfoCompiler {
 
     static {
-        JavaParser.getStaticConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_9);
+        StaticJavaParser.getConfiguration().setLanguageLevel(JAVA_9 );
+    }
+
+    public static ModuleDeclaration parseModuleInfo(Path moduleInfo) {
+        CompilationUnit ast;
+
+        try {
+            ast = StaticJavaParser.parse( moduleInfo );
+        }
+        catch (IOException e) {
+            throw new RuntimeException( "Couldn't parse " + moduleInfo, e );
+        }
+
+        return ast.getModule()
+                .orElseThrow( () -> new IllegalArgumentException( "Not a module-info.java: " + moduleInfo ) );
     }
 
     public static ModuleDeclaration parseModuleInfo(String moduleInfoSource) {
-        CompilationUnit ast = JavaParser.parse( moduleInfoSource );
+        CompilationUnit ast = StaticJavaParser.parse( moduleInfoSource );
 
         return ast.getModule()
                 .orElseThrow( () -> new IllegalArgumentException( "Not a module-info.java: " + moduleInfoSource ) );
@@ -88,15 +103,15 @@ public class ModuleInfoCompiler {
             mv.visitMainClass( getNameForBinary( mainClass ) );
         }
 
-        for ( ModuleRequiresStmt requires : module.findAll( ModuleRequiresStmt.class ) ) {
+        for ( ModuleRequiresDirective requires : module.findAll( ModuleRequiresDirective.class ) ) {
             mv.visitRequire(
                     requires.getName().asString(),
-                    requiresModifiersAsInt( requires.getModifiers() ),
+                    requiresModifiersAsInt( requires ),
                     null
             );
         }
 
-        for ( ModuleExportsStmt export : module.findAll( ModuleExportsStmt.class ) ) {
+        for ( ModuleExportsDirective export : module.findAll( ModuleExportsDirective.class ) ) {
             mv.visitExport(
                     getNameForBinary( export.getNameAsString() ),
                     0,
@@ -107,21 +122,21 @@ public class ModuleInfoCompiler {
             );
         }
 
-        for ( ModuleProvidesStmt provides : module.findAll( ModuleProvidesStmt.class ) ) {
+        for ( ModuleProvidesDirective provides : module.findAll( ModuleProvidesDirective.class ) ) {
             mv.visitProvide(
-                    getNameForBinary( provides.getType() ),
-                    provides.getWithTypes()
+                    getNameForBinary( provides.getName() ),
+                    provides.getWith()
                             .stream()
                             .map( ModuleInfoCompiler::getNameForBinary )
                             .toArray( String[]::new )
             );
         }
 
-        for ( ModuleUsesStmt uses : module.findAll( ModuleUsesStmt.class ) ) {
-            mv.visitUse( getNameForBinary( uses.getType() ) );
+        for ( ModuleUsesDirective uses : module.findAll( ModuleUsesDirective.class ) ) {
+            mv.visitUse( getNameForBinary( uses.getName() ) );
         }
 
-        for ( ModuleOpensStmt opens : module.findAll( ModuleOpensStmt.class ) ) {
+        for ( ModuleOpensDirective opens : module.findAll( ModuleOpensDirective.class ) ) {
             mv.visitOpen(
                     getNameForBinary( opens.getNameAsString() ),
                     0,
@@ -140,8 +155,8 @@ public class ModuleInfoCompiler {
         return classWriter.toByteArray();
     }
 
-    private static String getNameForBinary(Type type) {
-        return getNameForBinary( type.toString() );
+    private static String getNameForBinary(Name name) {
+        return getNameForBinary( name.asString() );
     }
 
     private static String getNameForBinary(String typeName) {
@@ -167,13 +182,13 @@ public class ModuleInfoCompiler {
         return typeNameForBinary.toString();
     }
 
-    private static int requiresModifiersAsInt(EnumSet<Modifier> modifiers) {
+    private static int requiresModifiersAsInt(NodeWithModifiers<?> modifiers) {
         int result = 0;
 
-        if ( modifiers.contains( Modifier.STATIC ) ) {
+        if ( modifiers.hasModifier( Modifier.Keyword.STATIC ) ) {
             result |= ACC_STATIC_PHASE;
         }
-        if ( modifiers.contains( Modifier.TRANSITIVE ) ) {
+        if ( modifiers.hasModifier( Modifier.Keyword.TRANSITIVE ) ) {
             result |= ACC_TRANSITIVE;
         }
 

@@ -30,7 +30,16 @@ import java.util.zip.ZipInputStream
 class BadassJarPluginSpec extends Specification {
     @Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
 
-    private static String createBuildContent(Boolean multiRelease, String sourceCompatibility) {
+    enum ModuleInfoType {
+        NONE,
+        STANDARD,
+        EXTERNAL,
+    }
+    private static final ModuleInfoType NONE = ModuleInfoType.NONE
+    private static final ModuleInfoType STANDARD = ModuleInfoType.STANDARD
+    private static final ModuleInfoType EXTERNAL = ModuleInfoType.EXTERNAL
+
+    private static String createBuildContent(Boolean multiRelease, ModuleInfoType moduleInfoType, String sourceCompatibility) {
         String content = """
             plugins {
                 id 'java'
@@ -38,11 +47,14 @@ class BadassJarPluginSpec extends Specification {
             }
             sourceCompatibility = $sourceCompatibility
         """.stripIndent()
-        def multiReleaseCfg = (multiRelease == null) ? '' : """
+        def multiReleaseCfg = (multiRelease == null) ? '' : "multiRelease = $multiRelease"
+        def moduleInfoPathCfg = (moduleInfoType != EXTERNAL) ? '' : "moduleInfoPath = 'src/main/module/module-info.java'"
+        def jarCfg = (!multiReleaseCfg && !moduleInfoPathCfg) ? '' : """
                 jar {
-                    multiRelease = $multiRelease
+                    $multiReleaseCfg
+                    $moduleInfoPathCfg
                 }""".stripIndent()
-        return content + multiReleaseCfg
+        return content + jarCfg
     }
 
     private static String getLocation(File jarFile, String fileName) {
@@ -62,12 +74,12 @@ class BadassJarPluginSpec extends Specification {
         assert false: "MANIFEST.MF not found in $jarFile"
     }
 
-    def setUpBuild(Boolean multiRelease, String sourceCompatibility, boolean hasModuleInfo) {
+    def setUpBuild(Boolean multiRelease, ModuleInfoType moduleInfoType, String sourceCompatibility) {
         createJavaMain()
-        if(hasModuleInfo) createJavaModuleInfo()
+        createJavaModuleInfo(moduleInfoType)
 
         File buildFile = testProjectDir.newFile("build.gradle")
-        buildFile.text = createBuildContent(multiRelease, sourceCompatibility)
+        buildFile.text = createBuildContent(multiRelease, moduleInfoType, sourceCompatibility)
         println "Executing build script:\n${buildFile.text}"
     }
 
@@ -87,10 +99,12 @@ class BadassJarPluginSpec extends Specification {
         }
     }
 
-    private void createJavaModuleInfo() {
-        File srcDir = new File(testProjectDir.root, 'src/main/java')
-        srcDir.mkdirs()
-        new File(srcDir, 'module-info.java').withPrintWriter {
+    private void createJavaModuleInfo(ModuleInfoType moduleInfoType) {
+        if(moduleInfoType == NONE) return
+        String subdirName = (moduleInfoType == STANDARD) ? 'java' : 'module'
+        File moduleInfoDir = new File(testProjectDir.root, "src/main/$subdirName")
+        moduleInfoDir.mkdirs()
+        new File(moduleInfoDir, 'module-info.java').withPrintWriter {
             it.print '''
                 module org.example.hello {
                     exports org.example.hello;
@@ -100,11 +114,13 @@ class BadassJarPluginSpec extends Specification {
     }
 
     @Unroll
-    def "create jar with multiRelease=#multiRelease, sourceCompatibility=#sourceCompatibility, javaCompatibility=#javaCompatibility, hasModuleInfo=#hasModuleInfo"() {
+    def "create jar with multiRelease=#multiRelease, sourceCompatibility=#sourceCompatibility, javaCompatibility=#javaCompatibility, moduleInfoType=#moduleInfoType"() {
         when:
-        setUpBuild(multiRelease, sourceCompatibility, hasModuleInfo)
+        setUpBuild(multiRelease, moduleInfoType, sourceCompatibility)
         def runner = GradleRunner.create()
         BuildResult result = runner
+                .forwardOutput()
+                .withDebug(true)
                 .withProjectDir(testProjectDir.root)
                 .withPluginClasspath()
                 .withArguments(['jar', '-is'] + (javaCompatibility ? ["-PjavaCompatibility=$javaCompatibility" as String] : []))
@@ -120,24 +136,24 @@ class BadassJarPluginSpec extends Specification {
         getManifest(jarFile).contains('Multi-Release: true') == multiReleaseManifest
 
         where:
-        multiRelease | sourceCompatibility | javaCompatibility | hasModuleInfo || badassJarUsed | expectedModuleInfoLocation | multiReleaseManifest
-        null         | '1.7'               | null              | true          || true          | 'META-INF/versions/9/'     | true
-        true         | '1.8'               | null              | true          || true          | 'META-INF/versions/9/'     | true
-        false        | '1.8'               | null              | true          || true          | ''                         | false
-        null         | '9'                 | null              | true          || false         | ''                         | false
-        true         | '10'                | null              | true          || false         | ''                         | false
-        false        | '11'                | null              | true          || false         | ''                         | false
-        null         | '1.7'               | null              | false         || false         | null                       | false
-        true         | '1.8'               | null              | false         || false         | null                       | false
-        false        | '1.8'               | null              | false         || false         | null                       | false
-        null         | '9'                 | null              | false         || false         | null                       | false
-        true         | '10'                | null              | false         || false         | null                       | false
-        false        | '11'                | null              | false         || false         | null                       | false
-        null         | '1.7'               | '11'              | true          || false         | ''                         | false
-        true         | '1.8'               | '1.10'            | true          || false         | ''                         | false
-        false        | '1.8'               | '1.9'             | true          || false         | ''                         | false
-        null         | '9'                 | '1.7'             | true          || true          | 'META-INF/versions/9/'     | true
-        true         | '10'                | '1.8'             | true          || true          | 'META-INF/versions/9/'     | true
-        false        | '11'                | '1.8'             | true          || true          | ''                         | false
+        multiRelease | sourceCompatibility | javaCompatibility | moduleInfoType || badassJarUsed | expectedModuleInfoLocation | multiReleaseManifest
+        null         | '1.7'               | null              | STANDARD       || true          | 'META-INF/versions/9/'     | true
+        true         | '1.8'               | null              | EXTERNAL       || true          | 'META-INF/versions/9/'     | true
+        false        | '1.8'               | null              | STANDARD       || true          | ''                         | false
+        null         | '9'                 | null              | EXTERNAL       || false         | null                         | false
+        true         | '10'                | null              | STANDARD       || false         | ''                         | false
+        false        | '11'                | null              | EXTERNAL       || false         | null                         | false
+        null         | '1.7'               | null              | NONE           || false         | null                       | false
+        true         | '1.8'               | null              | NONE           || false         | null                       | false
+        false        | '1.8'               | null              | NONE           || false         | null                       | false
+        null         | '9'                 | null              | NONE           || false         | null                       | false
+        true         | '10'                | null              | NONE           || false         | null                       | false
+        false        | '11'                | null              | NONE           || false         | null                       | false
+        null         | '1.7'               | '11'              | STANDARD       || false         | ''                         | false
+        true         | '1.8'               | '1.10'            | EXTERNAL       || false         | null                         | false
+        false        | '1.8'               | '1.9'             | STANDARD       || false         | ''                         | false
+        null         | '9'                 | '1.7'             | EXTERNAL       || true          | 'META-INF/versions/9/'     | true
+        true         | '10'                | '1.8'             | STANDARD       || true          | 'META-INF/versions/9/'     | true
+        false        | '11'                | '1.8'             | EXTERNAL       || true          | ''                         | false
     }
 }
