@@ -19,4 +19,4 @@ jobs:
       with:
         java-version: 11
     - name: Build with Gradle
-      run: ./gradlew $GRADLE_BUILD_OPTS build asciidoc
+      run: ./gradlew $GRADLE_BUILD_OPTS build
