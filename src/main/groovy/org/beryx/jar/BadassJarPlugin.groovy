@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,16 +20,22 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.logging.Logger
+import org.gradle.api.logging.Logging
 import org.gradle.jvm.tasks.Jar
+import org.gradle.util.GradleVersion
 
 class BadassJarPlugin implements Plugin<Project> {
+    private static final Logger LOGGER = Logging.getLogger(Util.class);
+
     @Override
     void apply(Project project) {
-        applyModuleSystemPlugin(project)
+        if(GradleVersion.current() < GradleVersion.version('6.4')) {
+            throw new GradleException("This plugin requires Gradle 6.4 or newer. Update your Gradle or use version 1.2.0 of this plugin.")
+        }
         project.tasks.withType(Jar) { Jar jarTask ->
             if(jarTask.name == 'jar') {
-                jarTask.metaClass.multiRelease = true
-                jarTask.metaClass.moduleInfoPath = ''
+                jarTask.extensions.create("modularity", JarModularityExtension, project)
             }
         }
 
@@ -37,19 +43,23 @@ class BadassJarPlugin implements Plugin<Project> {
             project.tasks.withType(Jar) { Jar jarTask ->
                 if(jarTask.name == 'jar') {
                     Util.adjustCompatibility(project)
+                    JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
+                    String moduleInfoPath = jarModularity.moduleInfoPath.get()
                     if(project.sourceCompatibility <= JavaVersion.VERSION_1_8 && project.targetCompatibility <= JavaVersion.VERSION_1_8) {
+                        LOGGER.info "badass-jar: module-info.class will be created by the plugin because compatibility <= 8"
+                        project.java.modularity.inferModulePath = false
                         project.sourceSets.main.java.exclude '**/module-info.java'
                         jarTask.doFirst {
                             File moduleInfoFile = null
-                            if(jarTask.moduleInfoPath) {
-                                moduleInfoFile = project.file(jarTask.moduleInfoPath)
+                            if(moduleInfoPath) {
+                                moduleInfoFile = project.file(moduleInfoPath)
                                 if(!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
                             } else {
                                 def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
                                 if(!moduleInfoDir) {
-                                    project.logger.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
+                                    LOGGER.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
                                 } else {
-                                    project.logger.debug "module-info.java found in $moduleInfoDir"
+                                    LOGGER.debug "badass-jar: module-info.java found in $moduleInfoDir"
                                     moduleInfoFile = new File(moduleInfoDir, 'module-info.java')
                                 }
                             }
@@ -58,7 +68,15 @@ class BadassJarPlugin implements Plugin<Project> {
                             }
                         }
                     } else {
-                        project.logger.info "badass-jar not used because compatibility >= 9"
+                        LOGGER.info "badass-jar: module-info.class will be created by the compiler because compatibility >= 9"
+                        if(jarModularity.multiRelease) {
+                            LOGGER.warn("badass-jar: ignoring multiRelease because compatibility >= 9")
+                        }
+                        if(moduleInfoPath) {
+                            File moduleInfoFile = project.file(moduleInfoPath)
+                            if(!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
+                            project.sourceSets.main.java.srcDir moduleInfoFile.parent
+                        }
                     }
                 }
             }
@@ -68,46 +86,20 @@ class BadassJarPlugin implements Plugin<Project> {
     File createModuleDescriptor(Project project, String moduleInfoSource, Jar jarTask, File targetBaseDir) {
         ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource);
         byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, null);
-        project.logger.debug "Module info compiled: $clazz.length bytes"
-        project.logger.debug "multiRelease: $jarTask.multiRelease"
-        if(jarTask.multiRelease) {
+        LOGGER.debug "badass-jar: Module info compiled: $clazz.length bytes"
+        JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
+        boolean multiRelease = jarModularity.multiRelease.get()
+        LOGGER.debug "badass-jar: multiRelease = $multiRelease"
+        if(multiRelease) {
             jarTask.manifest {
                 attributes('Multi-Release': true)
             }
         }
-        def targetDir = jarTask.multiRelease ? new File(targetBaseDir, 'META-INF/versions/9') : targetBaseDir
+        def targetDir = multiRelease ? new File(targetBaseDir, 'META-INF/versions/9') : targetBaseDir
         targetDir.mkdirs()
         def moduleDescriptor = new File(targetDir, 'module-info.class')
-        project.logger.info "Writing module descriptor into $moduleDescriptor"
+        LOGGER.info "badass-jar: Writing module descriptor into $moduleDescriptor"
         moduleDescriptor.withOutputStream { it.write(clazz) }
         moduleDescriptor
-    }
-
-    private applyModuleSystemPlugin(Project project) {
-        project.logger.info("Applying BadassModuleSystemPlugin to " + project.getName());
-        project.afterEvaluate {
-            Util.adjustCompatibility(project)
-            def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
-            if(moduleInfoDir && (project.sourceCompatibility >= JavaVersion.VERSION_1_9 || project.targetCompatibility >= JavaVersion.VERSION_1_9)) {
-                if(javaVersion < 11) {
-                    throw new GradleException("You need Java 11 or newer to execute the plugin on the module-path.")
-                }
-                Class msPluginClass = Class.forName('org.javamodularity.moduleplugin.ModuleSystemPlugin')
-                project.getPluginManager().apply(msPluginClass);
-                project.logger.info("ModuleSystemPlugin enabled: moduleInfoDir = $moduleInfoDir, sourceCompatibility = $project.sourceCompatibility targetCompatibility = $project.targetCompatibility")
-            } else [
-                    project.logger.info('ModuleSystemPlugin disabled.')
-            ]
-        }
-
-    }
-
-    static int getJavaVersion() {
-        double javaVersion = (System.properties['java.specification.version'] ?: 1.0) as double
-        if(1.2 <= javaVersion && javaVersion < 2) {
-            return Math.round(10 * javaVersion) % 10
-        } else {
-            return (int)javaVersion
-        }
     }
 }

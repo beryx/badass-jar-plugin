@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,21 +15,27 @@
  */
 package org.beryx.jar
 
+import groovy.transform.CompileStatic
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
+import org.gradle.api.logging.Logger
+import org.gradle.api.logging.Logging
 
+@CompileStatic
 class Util {
+    private static final Logger LOGGER = Logging.getLogger(Util.class);
+
     static void adjustCompatibility(Project project) {
         if(project.hasProperty('javaCompatibility')) {
-            def javaVersion = JavaVersion.toVersion(project.javaCompatibility)
-            if(!javaVersion) throw new GradleException("Invalid value for javaCompatibility: $project.javaCompatibility")
-            project.sourceCompatibility = javaVersion
-            project.targetCompatibility = javaVersion
-            project.logger.info "javaCompatibility: $javaVersion"
+            def javaVersion = JavaVersion.toVersion(project['javaCompatibility'])
+            if(!javaVersion) throw new GradleException("Invalid value for javaCompatibility: $project['javaCompatibility']")
+            project['sourceCompatibility'] = javaVersion
+            project['targetCompatibility'] = javaVersion
+            LOGGER.info "badass-jar: javaCompatibility: $javaVersion"
         } else {
-            project.logger.debug "javaCompatibility not set"
+            LOGGER.debug "badass-jar: javaCompatibility not set"
         }
-        project.logger.info "sourceCompatibility: ${project.sourceCompatibility}; targetCompatibility: ${project.targetCompatibility}"
+        LOGGER.info "badass-jar: sourceCompatibility: ${project['sourceCompatibility']}; targetCompatibility: ${project['targetCompatibility']}"
     }
 }

@@ -20,7 +20,7 @@ endif::[]
 
 http://makeapullrequest.com:[image:https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square[PRs Welcome]]
 https://github.com/beryx/badass-jar-plugin/blob/master/LICENSE[image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[License]]
-https://travis-ci.org/beryx/badass-jar-plugin[image:https://img.shields.io/travis/beryx/badass-jar-plugin/master.svg?label=Build[Build Status]]
+https://img.shields.io/github/workflow/status/beryx/badass-jar-plugin/build[image:https://github.com/beryx/badass-jlink-plugin/actions?query=workflow%3A%22build%22[Build Status]]
 
 == Badass Jar Plugin
 
@@ -29,13 +29,7 @@ This way, your library can be used not only by people who build JPMS application
 
 
 === Prerequisites
-The plugin works with Gradle 4 and 5 as shown in the table below:
-
-|====
-| Gradle | Java runtime | Source and target compatibility
-|4.0+ | 7+ | 1.2+
-|5.0+ | 8+ | 1.6+
-|====
+The plugin requires Gradle 6.4 or newer. For older Gradle releases you can use version 1.2.0 of this plugin.
 
 Note that your build can use Java 7 or 8, although it produces a modular jar.
 This is possible because the plugin assembles the module descriptors without using the java compiler.
@@ -48,7 +42,7 @@ Put the following in your `build.gradle`:
 ----
 plugins {
     id 'java'
-    id 'org.beryx.jar' version '1.2.0'
+    id 'org.beryx.jar' version '2.0.0'
 }
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -94,6 +88,8 @@ a modular jar targeted to Java releases before 9. +
 Both approaches have their pros and cons.
 Choose the one that suits you the most.
 
+The plugin adds an extension named `modularity` to the `jar` task. This extension provides a couple of properties, which are described below.
+
 ==== Multi-release JAR
 
 Typically, a https://openjdk.java.net/projects/jigsaw/spec/sotms/#module-artifacts[modular jar]
@@ -105,29 +101,33 @@ with the `module-info.class` file located in `META-INF/versions/9`, as shown bel
 
 image:https://raw.githubusercontent.com/beryx/badass-jar-plugin/master/doc/multi-release-jar.png[multi-release-jar,548,200]
 
-You can prevent the creation of a multi-release jar by setting `multiRelease` to `false` in the `jar` section of your build script:
+You can prevent the creation of a multi-release jar by setting the `multiRelease` property to `false` in the `modularity` extension of the `jar` task:
 
 [source,groovy]
 ----
 jar {
     ...
-    multiRelease = false
+    modularity {
+        multiRelease = false
+    }
     ...
 }
 ----
 
 ==== module-info.java location
 
-As mentioned before, this plugin lets you create a modular jar even if you're stuck with Java 7 or 8.
+As mentioned before, this plugin lets you create a modular jar even if your toolchain uses Java 7 or 8.
 However, your IDE may complain  about the presence of `module-info.java` in your source directory when using a pre-Java 9 compiler.
 To avoid this situation, you can tell the plugin to retrieve the module descriptor from another location.
-You do this by setting the `moduleInfoPath` property in the `jar` section of your build script:
+You do this by setting the `moduleInfoPath` property in the `modularity` extension of the `jar` task:
 
 [source,groovy]
 ----
 jar {
     ...
+    modularity {
     moduleInfoPath = 'src/main/module/module-info.java'
+    }
     ...
 }
 ----

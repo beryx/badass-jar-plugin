@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ import java.util.Iterator;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers;
+import groovy.transform.CompileStatic;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ModuleVisitor;
 
@@ -65,6 +66,7 @@ import com.github.javaparser.ast.modules.ModuleProvidesDirective;
 import com.github.javaparser.ast.modules.ModuleRequiresDirective;
 import com.github.javaparser.ast.modules.ModuleUsesDirective;
 
+@CompileStatic
 public class ModuleInfoCompiler {
 
     static {

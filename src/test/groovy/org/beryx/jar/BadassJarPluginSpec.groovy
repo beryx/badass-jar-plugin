@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,17 @@ package org.beryx.jar
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
+import spock.lang.TempDir
 import spock.lang.Unroll
 
+import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 
 class BadassJarPluginSpec extends Specification {
-    @Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
+    @TempDir Path testProjectDir
 
     enum ModuleInfoType {
         NONE,
@@ -78,13 +78,13 @@ class BadassJarPluginSpec extends Specification {
         createJavaMain()
         createJavaModuleInfo(moduleInfoType)
 
-        File buildFile = testProjectDir.newFile("build.gradle")
+        File buildFile = new File(testProjectDir.toFile(), "build.gradle")
         buildFile.text = createBuildContent(multiRelease, moduleInfoType, sourceCompatibility)
         println "Executing build script:\n${buildFile.text}"
     }
 
     private void createJavaMain() {
-        File srcDir = new File(testProjectDir.root, 'src/main/java/org/example/hello')
+        File srcDir = new File(testProjectDir.toFile(), 'src/main/java/org/example/hello')
         srcDir.mkdirs()
         new File(srcDir, 'Hello.java').withPrintWriter {
             it.print '''
@@ -102,7 +102,7 @@ class BadassJarPluginSpec extends Specification {
     private void createJavaModuleInfo(ModuleInfoType moduleInfoType) {
         if(moduleInfoType == NONE) return
         String subdirName = (moduleInfoType == STANDARD) ? 'java' : 'module'
-        File moduleInfoDir = new File(testProjectDir.root, "src/main/$subdirName")
+        File moduleInfoDir = new File(testProjectDir.toFile(), "src/main/$subdirName")
         moduleInfoDir.mkdirs()
         new File(moduleInfoDir, 'module-info.java').withPrintWriter {
             it.print '''
@@ -121,7 +121,7 @@ class BadassJarPluginSpec extends Specification {
         BuildResult result = runner
                 .forwardOutput()
                 .withDebug(true)
-                .withProjectDir(testProjectDir.root)
+                .withProjectDir(testProjectDir.toFile())
                 .withPluginClasspath()
                 .withArguments(['jar', '-is'] + (javaCompatibility ? ["-PjavaCompatibility=$javaCompatibility" as String] : []))
                 .build();
