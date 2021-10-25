@@ -126,7 +126,7 @@ You do this by setting the `moduleInfoPath` property in the `modularity` extensi
 jar {
     ...
     modularity {
-    moduleInfoPath = 'src/main/module/module-info.java'
+        moduleInfoPath = 'src/main/module/module-info.java'
     }
     ...
 }

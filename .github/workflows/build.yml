@@ -18,13 +18,5 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 11
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Grant execute permission for publish.sh
-      run: chmod +x publish.sh
     - name: Build with Gradle
-      run: ./gradlew $GRADLE_BUILD_OPTS build asciidoc --scan
-    - name: Run publish if necessary
-      env: # Or as an environment variable
-        GRGIT_USER: ${{ secrets.GRGIT_USER }}
-      run: ./publish.sh
+      run: ./gradlew $GRADLE_BUILD_OPTS build asciidoc
