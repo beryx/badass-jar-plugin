@@ -21,12 +21,11 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.Logger
-import org.gradle.api.logging.Logging
 import org.gradle.jvm.tasks.Jar
 import org.gradle.util.GradleVersion
 
 class BadassJarPlugin implements Plugin<Project> {
-    private static final Logger LOGGER = Logging.getLogger(Util.class);
+    private static final Logger LOGGER = PluginLogger.of(BadassJarPlugin.class);
 
     @Override
     void apply(Project project) {
@@ -46,7 +45,7 @@ class BadassJarPlugin implements Plugin<Project> {
                     JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
                     String moduleInfoPath = jarModularity.moduleInfoPath.get()
                     if(project.sourceCompatibility <= JavaVersion.VERSION_1_8 && project.targetCompatibility <= JavaVersion.VERSION_1_8) {
-                        LOGGER.info "badass-jar: module-info.class will be created by the plugin because compatibility <= 8"
+                        LOGGER.info "module-info.class will be created by the plugin because compatibility <= 8"
                         project.java.modularity.inferModulePath = false
                         project.sourceSets.main.java.exclude '**/module-info.java'
                         jarTask.doFirst {
@@ -59,7 +58,7 @@ class BadassJarPlugin implements Plugin<Project> {
                                 if(!moduleInfoDir) {
                                     LOGGER.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
                                 } else {
-                                    LOGGER.debug "badass-jar: module-info.java found in $moduleInfoDir"
+                                    LOGGER.debug "module-info.java found in $moduleInfoDir"
                                     moduleInfoFile = new File(moduleInfoDir, 'module-info.java')
                                 }
                             }
@@ -68,14 +67,14 @@ class BadassJarPlugin implements Plugin<Project> {
                             }
                         }
                     } else {
-                        LOGGER.info "badass-jar: module-info.class will be created by the compiler because compatibility >= 9"
+                        LOGGER.info "module-info.class will be created by the compiler because compatibility >= 9"
                         if(jarModularity.multiRelease.getOrElse(false)) {
-                            LOGGER.warn("badass-jar: ignoring multiRelease because compatibility >= 9")
+                            LOGGER.warn("ignoring multiRelease because compatibility >= 9")
                         }
                         String moduleVersion = jarModularity.versionOrDefault
                         if(moduleVersion) {
                             def versionArgs = ['--module-version', moduleVersion]
-                            LOGGER.debug "badass-jar: using versionArgs: $versionArgs"
+                            LOGGER.debug "using versionArgs: $versionArgs"
                             project.tasks.compileJava.options.compilerArgs.addAll versionArgs
                         }
                         if(moduleInfoPath) {
@@ -93,11 +92,11 @@ class BadassJarPlugin implements Plugin<Project> {
         JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
         ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource);
         String version = jarModularity.versionOrDefault
-        LOGGER.debug "badass-jar: Setting module version to $version"
+        LOGGER.debug "Setting module version to $version"
         byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, version);
-        LOGGER.debug "badass-jar: Module info compiled: $clazz.length bytes"
+        LOGGER.debug "Module info compiled: $clazz.length bytes"
         boolean multiRelease = jarModularity.multiRelease.getOrElse(false)
-        LOGGER.debug "badass-jar: multiRelease = $multiRelease"
+        LOGGER.debug "multiRelease = $multiRelease"
         if(multiRelease) {
             jarTask.manifest {
                 attributes('Multi-Release': true)
@@ -106,7 +105,7 @@ class BadassJarPlugin implements Plugin<Project> {
         def targetDir = multiRelease ? new File(targetBaseDir, 'META-INF/versions/9') : targetBaseDir
         targetDir.mkdirs()
         def moduleDescriptor = new File(targetDir, 'module-info.class')
-        LOGGER.info "badass-jar: Writing module descriptor into $moduleDescriptor"
+        LOGGER.info "Writing module descriptor into $moduleDescriptor"
         moduleDescriptor.withOutputStream { it.write(clazz) }
         moduleDescriptor
     }
