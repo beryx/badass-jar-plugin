@@ -42,7 +42,7 @@ Put the following in your `build.gradle`:
 ----
 plugins {
     id 'java'
-    id 'org.beryx.jar' version '2.0.0-rc-1'
+    id 'org.beryx.jar' version '2.0.0-rc-2'
 }
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
