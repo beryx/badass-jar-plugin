@@ -29,7 +29,7 @@ This way, your library can be used not only by people who build JPMS application
 
 
 === Prerequisites
-The plugin requires Gradle 6.4 or newer. For older Gradle releases you can use https://github.com/beryx/badass-jar-plugin/tree/version-1.x[version 1.2.0] of this plugin.
+The plugin requires Gradle 6.7 or newer. For older Gradle releases you can use https://github.com/beryx/badass-jar-plugin/tree/version-1.x[version 1.2.0] of this plugin.
 
 Note that your build can use Java 7 or 8, although it produces a modular jar.
 This is possible because the plugin assembles the module descriptors without using the java compiler.

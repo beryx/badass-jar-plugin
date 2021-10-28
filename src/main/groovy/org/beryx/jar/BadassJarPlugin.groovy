@@ -16,91 +16,115 @@
 package org.beryx.jar
 
 import com.github.javaparser.ast.modules.ModuleDeclaration
+import groovy.transform.CompileStatic
+import org.beryx.jar.JarModularityExtension.JarModularityData
 import org.gradle.api.GradleException
-import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.Logger
+import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.tasks.Jar
 import org.gradle.util.GradleVersion
 
+@CompileStatic
 class BadassJarPlugin implements Plugin<Project> {
-    private static final Logger LOGGER = PluginLogger.of(BadassJarPlugin.class);
+    private static final Logger LOGGER = PluginLogger.of(BadassJarPlugin.class)
 
     @Override
     void apply(Project project) {
-        if(GradleVersion.current() < GradleVersion.version('6.4')) {
-            throw new GradleException("This plugin requires Gradle 6.4 or newer. Update your Gradle or use version 1.2.0 of this plugin.")
+        if(GradleVersion.current() < GradleVersion.version('6.7')) {
+            throw new GradleException("This plugin requires Gradle 6.7 or newer. Update your Gradle or use version 1.2.0 of this plugin.")
         }
-        project.tasks.withType(Jar) { Jar jarTask ->
-            if(jarTask.name == 'jar') {
-                jarTask.extensions.create("modularity", JarModularityExtension, project)
-            }
-        }
+        Jar jarTask = (Jar)project.tasks.findByName(JavaPlugin.JAR_TASK_NAME)
+        jarTask?.extensions?.create("modularity", JarModularityExtension, project)
 
         project.afterEvaluate {
-            project.tasks.withType(Jar) { Jar jarTask ->
-                if(jarTask.name == 'jar') {
-                    Util.adjustCompatibility(project)
-                    JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
-                    String moduleInfoPath = jarModularity.moduleInfoPath.get()
-                    if(project.sourceCompatibility <= JavaVersion.VERSION_1_8 && project.targetCompatibility <= JavaVersion.VERSION_1_8) {
-                        LOGGER.info "module-info.class will be created by the plugin because compatibility <= 8"
-                        project.java.modularity.inferModulePath = false
-                        project.sourceSets.main.java.exclude '**/module-info.java'
-                        jarTask.doFirst {
-                            File moduleInfoFile = null
-                            if(moduleInfoPath) {
-                                moduleInfoFile = project.file(moduleInfoPath)
-                                if(!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
-                            } else {
-                                def moduleInfoDir = project.sourceSets.main.java.srcDirs.find { new File(it, 'module-info.java').file }
-                                if(!moduleInfoDir) {
-                                    LOGGER.info "badass-jar not used because module-info.java is not present in $project.sourceSets.main.java.srcDirs"
-                                } else {
-                                    LOGGER.debug "module-info.java found in $moduleInfoDir"
-                                    moduleInfoFile = new File(moduleInfoDir, 'module-info.java')
-                                }
-                            }
-                            if(moduleInfoFile) {
-                                createModuleDescriptor(project, moduleInfoFile.text, jarTask, project.sourceSets.main.java.destinationDirectory.asFile.get())
-                            }
-                        }
+            if(jarTask) {
+                if(jarTask.name == JavaPlugin.JAR_TASK_NAME) {
+                    JavaCompile compileJava = (JavaCompile)project.tasks.getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME)
+                    int toolchainVersion = compileJava.javaCompiler.get().metadata.languageVersion.asInt()
+                    LOGGER.debug("toolchainVersion: $toolchainVersion")
+                    def data = ((JarModularityExtension)jarTask.getExtensions().getByName("modularity")).data
+                    if(toolchainVersion > 8) {
+                        configureJpmsToolchain(jarTask, data)
                     } else {
-                        LOGGER.info "module-info.class will be created by the compiler because compatibility >= 9"
-                        if(jarModularity.multiRelease.getOrElse(false)) {
-                            LOGGER.warn("ignoring multiRelease because compatibility >= 9")
-                        }
-                        String moduleVersion = jarModularity.versionOrDefault
-                        if(moduleVersion) {
-                            def versionArgs = ['--module-version', moduleVersion]
-                            LOGGER.debug "using versionArgs: $versionArgs"
-                            project.tasks.compileJava.options.compilerArgs.addAll versionArgs
-                        }
-                        if(moduleInfoPath) {
-                            File moduleInfoFile = project.file(moduleInfoPath)
-                            if(!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
-                            project.sourceSets.main.java.srcDir moduleInfoFile.parent
-                        }
+                        configureNonJpmsToolchain(jarTask, data)
                     }
                 }
             }
         }
     }
 
-    File createModuleDescriptor(Project project, String moduleInfoSource, Jar jarTask, File targetBaseDir) {
-        JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
-        ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource);
-        String version = jarModularity.versionOrDefault
+    static void configureJpmsToolchain(Jar jarTask, JarModularityData jarModularityData) {
+        def project = jarTask.project
+        JavaCompile compileJava = (JavaCompile)project.tasks.getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME)
+
+        LOGGER.info "module-info.class will be created by the compiler because compatibility >= 9"
+        if(jarModularityData.multiRelease) {
+            LOGGER.warn("ignoring multiRelease because compatibility >= 9")
+        }
+        String moduleVersion = jarModularityData.version
+        if(moduleVersion) {
+            def versionArgs = ['--module-version', moduleVersion]
+            LOGGER.debug "using versionArgs: $versionArgs"
+            compileJava.options.compilerArgs.addAll versionArgs
+        }
+        if(jarModularityData.moduleInfoPath) {
+            File moduleInfoFile = project.file(jarModularityData.moduleInfoPath)
+            if(!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
+            def javaPluginExtension = project.extensions.getByType(JavaPluginExtension)
+            SourceSet mainSourceSet = javaPluginExtension.sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+            mainSourceSet.java.srcDir(moduleInfoFile.parent)
+        }
+    }
+
+    static void configureNonJpmsToolchain(Jar jarTask, JarModularityData jarModularityData) {
+        LOGGER.info "module-info.class will be created using the ASM library because your toolchain version is <= 8"
+        def project = jarTask.project
+
+        def javaPluginExtension = project.extensions.getByType(JavaPluginExtension)
+        javaPluginExtension.modularity.inferModulePath.set(false)
+        project.tasks.withType(JavaCompile) { JavaCompile task -> task.modularity.inferModulePath.set(false) }
+        project.tasks.withType(JavaExec) { JavaExec task -> task.modularity.inferModulePath.set(false) }
+
+        SourceSet mainSourceSet = javaPluginExtension.sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+        mainSourceSet.java.exclude('**/module-info.java')
+
+        jarTask.doFirst {
+            File moduleInfoFile = null
+            if (jarModularityData.moduleInfoPath) {
+                moduleInfoFile = project.file(jarModularityData.moduleInfoPath)
+                if (!moduleInfoFile.file) throw new GradleException("$moduleInfoFile.absolutePath not available")
+            } else {
+                def moduleInfoDir = mainSourceSet.java.srcDirs.find { new File(it, 'module-info.java').file }
+                if (!moduleInfoDir) {
+                    LOGGER.info "badass-jar not used because module-info.java is not present in $mainSourceSet.java.srcDirs"
+                } else {
+                    LOGGER.debug "module-info.java found in $moduleInfoDir"
+                    moduleInfoFile = new File(moduleInfoDir, 'module-info.java')
+                }
+            }
+            if (moduleInfoFile) {
+                def targetBaseDir = mainSourceSet.java.destinationDirectory.asFile.get()
+                createModuleDescriptor(jarModularityData, moduleInfoFile.text, jarTask, targetBaseDir)
+            }
+        }
+    }
+
+    static File createModuleDescriptor(JarModularityData jarModularityData, String moduleInfoSource, Jar jarTask, File targetBaseDir) {
+        ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource)
+        String version = jarModularityData.version
         LOGGER.debug "Setting module version to $version"
-        byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, version);
+        byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, version)
         LOGGER.debug "Module info compiled: $clazz.length bytes"
-        boolean multiRelease = jarModularity.multiRelease.getOrElse(false)
+        boolean multiRelease = jarModularityData.multiRelease
         LOGGER.debug "multiRelease = $multiRelease"
         if(multiRelease) {
-            jarTask.manifest {
-                attributes('Multi-Release': true)
-            }
+            jarTask.manifest.attributes('Multi-Release': true)
         }
         def targetDir = multiRelease ? new File(targetBaseDir, 'META-INF/versions/9') : targetBaseDir
         targetDir.mkdirs()

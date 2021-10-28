@@ -15,14 +15,30 @@
  */
 package org.beryx.jar
 
+import groovy.transform.Canonical
+import groovy.transform.CompileStatic
+import groovy.transform.TupleConstructor
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
 
+@CompileStatic
 class JarModularityExtension {
     private final Project project
     final Property<String> moduleInfoPath
     final Property<Boolean> multiRelease
     final Property<String> version
+
+    static class JarModularityData {
+        final String moduleInfoPath
+        final boolean multiRelease
+        final String version
+
+        JarModularityData(String moduleInfoPath, boolean multiRelease, String version) {
+            this.moduleInfoPath = moduleInfoPath
+            this.multiRelease = multiRelease
+            this.version = version
+        }
+    }
 
     JarModularityExtension(Project project) {
         this.project = project;
@@ -36,7 +52,11 @@ class JarModularityExtension {
         version = project.objects.property(String)
     }
 
-    String getVersionOrDefault() {
-        version.getOrElse(project.version as String)
+    JarModularityData getData() {
+        new JarModularityData(
+                moduleInfoPath.get(),
+                multiRelease.get(),
+                version.getOrElse(project.version as String)
+        )
     }
 }
