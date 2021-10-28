@@ -64,13 +64,19 @@ class BadassJarPlugin implements Plugin<Project> {
                                 }
                             }
                             if(moduleInfoFile) {
-                                createModuleDescriptor(project, moduleInfoFile.text, jarTask, project.sourceSets.main.java.outputDir)
+                                createModuleDescriptor(project, moduleInfoFile.text, jarTask, project.sourceSets.main.java.destinationDirectory.asFile.get())
                             }
                         }
                     } else {
                         LOGGER.info "badass-jar: module-info.class will be created by the compiler because compatibility >= 9"
-                        if(jarModularity.multiRelease) {
+                        if(jarModularity.multiRelease.getOrElse(false)) {
                             LOGGER.warn("badass-jar: ignoring multiRelease because compatibility >= 9")
+                        }
+                        String moduleVersion = jarModularity.versionOrDefault
+                        if(moduleVersion) {
+                            def versionArgs = ['--module-version', moduleVersion]
+                            LOGGER.debug "badass-jar: using versionArgs: $versionArgs"
+                            project.tasks.compileJava.options.compilerArgs.addAll versionArgs
                         }
                         if(moduleInfoPath) {
                             File moduleInfoFile = project.file(moduleInfoPath)
@@ -84,11 +90,13 @@ class BadassJarPlugin implements Plugin<Project> {
     }
 
     File createModuleDescriptor(Project project, String moduleInfoSource, Jar jarTask, File targetBaseDir) {
-        ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource);
-        byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, null);
-        LOGGER.debug "badass-jar: Module info compiled: $clazz.length bytes"
         JarModularityExtension jarModularity = jarTask.getExtensions().getByName("modularity")
-        boolean multiRelease = jarModularity.multiRelease.get()
+        ModuleDeclaration module = ModuleInfoCompiler.parseModuleInfo(moduleInfoSource);
+        String version = jarModularity.versionOrDefault
+        LOGGER.debug "badass-jar: Setting module version to $version"
+        byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, version);
+        LOGGER.debug "badass-jar: Module info compiled: $clazz.length bytes"
+        boolean multiRelease = jarModularity.multiRelease.getOrElse(false)
         LOGGER.debug "badass-jar: multiRelease = $multiRelease"
         if(multiRelease) {
             jarTask.manifest {

@@ -22,6 +22,7 @@ class JarModularityExtension {
     private final Project project
     final Property<String> moduleInfoPath
     final Property<Boolean> multiRelease
+    final Property<String> version
 
     JarModularityExtension(Project project) {
         this.project = project;
@@ -31,5 +32,11 @@ class JarModularityExtension {
 
         multiRelease = project.objects.property(Boolean)
         multiRelease.set(true)
+
+        version = project.objects.property(String)
+    }
+
+    String getVersionOrDefault() {
+        version.getOrElse(project.version as String)
     }
 }

@@ -128,6 +128,20 @@ jar {
 }
 ----
 
+==== Module version
+
+By default, the plugin sets the module version using the value of your project version. You can provide a different value by setting the `version` property in the `modularity` extension of the `jar` task:
+
+[source,groovy]
+----
+jar {
+    ...
+    modularity {
+        version = '2.3.4'
+    }
+    ...
+}
+----
 
 === Examples
 
