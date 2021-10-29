@@ -26,28 +26,33 @@ class ModuleConfigExtension {
     final Property<Boolean> multiRelease
     final Property<String> version
     final Property<Integer> moduleInfoCompatibility
+    final Property<Boolean> neverCompileModuleInfo
 
     static class ModuleData {
         final String moduleInfoPath
         final boolean multiRelease
         final String version
         final int moduleInfoCompatibility
+        final boolean neverCompileModuleInfo
 
-        ModuleData(String moduleInfoPath, boolean multiRelease, String version, int moduleInfoCompatibility) {
+        ModuleData(String moduleInfoPath, boolean multiRelease,
+                   String version, int moduleInfoCompatibility, boolean neverCompileModuleInfo) {
             this.moduleInfoPath = moduleInfoPath
             this.multiRelease = multiRelease
             this.version = version
             this.moduleInfoCompatibility = moduleInfoCompatibility
+            this.neverCompileModuleInfo = neverCompileModuleInfo
         }
     }
 
     ModuleConfigExtension(Project project) {
         this.project = project
 
-        moduleInfoPath = project.objects.property(String)
-        multiRelease = project.objects.property(Boolean)
-        version = project.objects.property(String)
-        moduleInfoCompatibility = project.objects.property(Integer)
+        this.moduleInfoPath = project.objects.property(String)
+        this.multiRelease = project.objects.property(Boolean)
+        this.version = project.objects.property(String)
+        this.moduleInfoCompatibility = project.objects.property(Integer)
+        this.neverCompileModuleInfo = project.objects.property(Boolean)
     }
 
     ModuleData getData() {
@@ -55,7 +60,8 @@ class ModuleConfigExtension {
                 moduleInfoPath.getOrElse(''),
                 multiRelease.getOrElse(true),
                 version.getOrElse(''),
-                moduleInfoCompatibility.getOrElse(9)
+                moduleInfoCompatibility.getOrElse(9),
+                neverCompileModuleInfo.getOrElse(false)
         )
     }
 }

@@ -19,6 +19,7 @@ import com.github.javaparser.ast.modules.ModuleDeclaration
 import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import org.beryx.jar.ModuleConfigExtension.ModuleData
+import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
@@ -35,6 +36,7 @@ class JarTaskConfigurer {
     private final Logger LOGGER = PluginLogger.of(JarTaskConfigurer)
 
     public static final String COMPILE_NON_JPMS_TASK_NAME = "compileNonJpms"
+    public static final String MAKE_MODULE_INFO_DIR_TASK_NAME = "makeModuleInfoDir"
 
     final Project project
     final Jar jarTask
@@ -65,7 +67,7 @@ class JarTaskConfigurer {
         if(moduleInfoJava) {
             int toolchainVersion = compilerVersion.majorVersion as int
             LOGGER.debug("toolchainVersion: $toolchainVersion")
-            if(toolchainVersion > 8) {
+            if(toolchainVersion > 8 && !moduleData.neverCompileModuleInfo) {
                 configureJpmsToolchain()
             } else {
                 configureNonJpmsToolchain()
@@ -157,7 +159,9 @@ class JarTaskConfigurer {
 
         mainSourceSet.java.exclude('**/module-info.java')
 
-        compileJava.doFirst {
+        def mkdirsTask = project.tasks.maybeCreate(MAKE_MODULE_INFO_DIR_TASK_NAME, DefaultTask)
+        compileJava.dependsOn(mkdirsTask)
+        mkdirsTask.doFirst {
             moduleInfoTargetDir.mkdirs()
             if(!moduleInfoTargetDir.directory) throw new GradleException("Cannot create directory $moduleInfoTargetDir")
             LOGGER.debug("Directory $moduleInfoTargetDir created.")
