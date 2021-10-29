@@ -27,24 +27,24 @@ import org.slf4j.Marker
  */
 @CompileStatic
 class PluginLogger implements Logger {
-    private static final Logger INTERNAL_LOGGER = Logging.getLogger(PluginLogger)
+    private final Logger INTERNAL_LOGGER = Logging.getLogger(PluginLogger)
 
     @Delegate final Logger logger
 
-    static final String LOG_LEVEL_PROPERTY = "badass-jar-log-level"
+    static final String LOG_LEVEL_PROPERTY_NAME = "badass-jar-log-level"
     static final String LOG_PREFIX = "badass-jar: "
 
     final Level logLevel = pluginLogLevel
 
-    static enum Level { trace, debug, info, warn, error, off }
+    static enum Level { trace, debug, info, warn, error, inherited}
 
     static PluginLogger of(Class clazz) {
         new PluginLogger(Logging.getLogger(clazz))
     }
 
-    static Level getPluginLogLevel() {
-        String pluginLevel = System.properties[LOG_LEVEL_PROPERTY]
-        Level.values().find {it.name() == pluginLevel } ?: Level.off
+    Level getPluginLogLevel() {
+        String pluginLevel = System.properties[LOG_LEVEL_PROPERTY_NAME]
+        Level.values().find {it.name() == pluginLevel } ?: Level.inherited
     }
 
     PluginLogger(Logger logger) {
@@ -52,11 +52,11 @@ class PluginLogger implements Logger {
         INTERNAL_LOGGER.info("Log level of $logger.name set to $logLevel")
     }
 
-    @Override boolean isTraceEnabled() { logLevel <= Level.trace }
-    @Override boolean isDebugEnabled() { logLevel <= Level.debug }
-    @Override boolean isInfoEnabled() { logLevel <= Level.info }
-    @Override boolean isWarnEnabled() { logLevel <= Level.warn }
-    @Override boolean isErrorEnabled() { logLevel <= Level.error }
+    @Override boolean isTraceEnabled() { logLevel == Level.inherited ? logger.isTraceEnabled() : logLevel <= Level.trace }
+    @Override boolean isDebugEnabled() { logLevel == Level.inherited ? logger.isDebugEnabled() : logLevel <= Level.debug }
+    @Override boolean isInfoEnabled() { logLevel == Level.inherited ? logger.isInfoEnabled() : logLevel <= Level.info }
+    @Override boolean isWarnEnabled() { logLevel == Level.inherited ? logger.isWarnEnabled() : logLevel <= Level.warn }
+    @Override boolean isErrorEnabled() { logLevel == Level.inherited ? logger.isErrorEnabled() : logLevel <= Level.error }
 
 
     @Override void trace(String msg) { if(traceEnabled) logger.lifecycle(LOG_PREFIX + msg) }

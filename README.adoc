@@ -29,64 +29,48 @@ This way, your library can be used not only by people who build JPMS application
 
 
 === Prerequisites
-The plugin requires Gradle 6.7 or newer. For older Gradle releases you can use https://github.com/beryx/badass-jar-plugin/tree/version-1.x[version 1.2.0] of this plugin.
+The plugin requires Gradle 7.1 or newer. For older Gradle releases you can use https://github.com/beryx/badass-jar-plugin/tree/version-1.x[version 1.2.0] of this plugin.
 
-Note that your build can use Java 7 or 8, although it produces a modular jar.
-This is possible because the plugin assembles the module descriptors without using the java compiler.
+Note that your build can create a modular jar even when using a Java 7 or 8 toolchain.
+This is possible because in this case the plugin assembles the module descriptors without using the java compiler.
 
 
-=== Quick start
+=== Usage
 
-Put the following in your `build.gradle`:
+To use the plugin, include the following in your build script:
 [source,groovy]
 ----
 plugins {
     id 'java'
-    id 'org.beryx.jar' version '2.0.0-rc-2'
+    id 'org.beryx.jar' version '2.0.0-rc-3'
 }
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
 ----
 
-To create your modular jar execute:
+The plugin uses an extension named `moduleConfig`. The sample below shows a few configuration options.
+[source,groovy]
 ----
-./gradlew jar
+moduleConfig {
+    moduleInfoPath = 'src/main/module/module-info.java'
+    multiRelease = true
+    moduleInfoCompatibility = 9
+    version = project.version
+}
 ----
 
-=== Usage
+Since all properties have default values, the `moduleConfig` block may be missing.
 
-To make your library modular, you need to provide a `module-info.java` in the project's root source directory.
-The plugin uses the https://github.com/javaparser/javaparser[JavaParser] to analyze this file and
-the https://asm.ow2.io/[ASM] bytecode manipulation framework to generate the corresponding module descriptor.
-
-This approach has the advantage that you don't need a Java 9+ compiler to build your modular jar.
-The downside is that it cannot validate your module descriptor.
+To make your library modular, you need to provide a `module-info.java`, which usually resides in the project's main java source directory.
+If the version of your java toolchain is greater than 8, the plugin compiles this file using the java compiler.
+Otherwise, it uses the https://github.com/javaparser/javaparser[JavaParser] to analyze the `module-info.java` file and the https://asm.ow2.io/[ASM] bytecode manipulation framework to generate the corresponding module descriptor.
+Note that in this later case, the plugin cannot validate your module descriptor.
 References to nonexistent packages, modules, services, or service implementations go undetected.
 
-Therefore, it is strongly advised to ensure the validity of your module descriptor by additionally building your
-project using a Java 9+ compiler with the `sourceCompatibility` and `targetCompatibility` set accordingly.
-The good news is that you don't need to change your build script in order to do this.
-The plugin lets you override the `sourceCompatibility` and `targetCompatibility` values by setting the
-project property `javaCompatibility`:
+Therefore, you should use a Java 9+ toolchain whenever it's possible.
 
-----
-./gradlew -PjavaCompatibility=9 jar
-----
+The properties provided by the `moduleConfig` extension are described below.
 
-Note that this project property overrides both `sourceCompatibility` and `targetCompatibility` with the same value.
-
-TIP: In the discussion above we considered that `sourceCompatibility` and `targetCompatibility` are
-configured with pre-Java 9 values in `build.gradle` and you override them with 9+ values using the
-`javaCompatibility` project property. +
-You can also work the other way around: set `sourceCompatibility` and `targetCompatibility` with 9+ values
-in `build.gradle` and override them with a pre-Java 9 value (via `javaCompatibility`) in order to generate
-a modular jar targeted to Java releases before 9. +
-Both approaches have their pros and cons.
-Choose the one that suits you the most.
-
-The plugin adds an extension named `modularity` to the `jar` task. This extension provides a couple of properties, which are described below.
-
-==== Multi-release JAR
+==== _multiRelease_ : enable/disable Multi-release JAR
+[purple]##default value: ## `true`
 
 Typically, a https://openjdk.java.net/projects/jigsaw/spec/sotms/#module-artifacts[modular jar]
 includes the `module-info.class` file in its root directory.
@@ -97,48 +81,56 @@ with the `module-info.class` file located in `META-INF/versions/9`, as shown bel
 
 image:https://raw.githubusercontent.com/beryx/badass-jar-plugin/master/doc/multi-release-jar.png[multi-release-jar,548,200]
 
-You can prevent the creation of a multi-release jar by setting the `multiRelease` property to `false` in the `modularity` extension of the `jar` task:
+You can prevent the creation of a multi-release jar by setting the `multiRelease` property to `false` in the `moduleConfig` extension:
 
 [source,groovy]
 ----
-jar {
-    ...
-    modularity {
-        multiRelease = false
-    }
+moduleConfig {
+    multiRelease = false
     ...
 }
 ----
 
-==== module-info.java location
+==== _moduleInfoCompatibility_: configure module descriptor location
+[purple]##default value: ## `9`
 
-As mentioned before, this plugin lets you create a modular jar even if your toolchain uses Java 7 or 8.
+When creating a multi-release jar, the plugin puts by default the `module-info.class` file in the `META-INF/versions/9` folder, which means that any JVM with version >= 9 will handle this jar as modular. You can change this by setting the `moduleInfoCompatibility` property in the `moduleConfig` extension. For example, the code below instructs the plugin to put the module descriptor in the `META-INF/versions/11` folder.
+
+[source,groovy]
+----
+moduleConfig {
+    moduleInfoCompatibility = 11
+}
+----
+
+
+==== _moduleInfoPath_: configure module-info.java location
+[purple]##default value: ## `src/main/java/module-info.java`
+
+As mentioned before, this plugin lets you create a modular jar even if you use a Java 7 or 8 toolchain.
 However, your IDE may complain  about the presence of `module-info.java` in your source directory when using a pre-Java 9 compiler.
 To avoid this situation, you can tell the plugin to retrieve the module descriptor from another location.
-You do this by setting the `moduleInfoPath` property in the `modularity` extension of the `jar` task:
+You do this by setting the `moduleInfoPath` property in the `moduleConfig` extension:
 
 [source,groovy]
 ----
-jar {
-    ...
-    modularity {
-        moduleInfoPath = 'src/main/module/module-info.java'
-    }
+moduleConfig {
+    moduleInfoPath = 'src/main/module/module-info.java'
     ...
 }
 ----
 
-==== Module version
+You should avoid using property when using a java toolchain with a version >= 9.
 
-By default, the plugin sets the module version using the value of your project version. You can provide a different value by setting the `version` property in the `modularity` extension of the `jar` task:
+==== _version_: configure module version
+[purple]##default value: ## _empty_ (no module version will be set)
+
+You can specify a version for your module by setting the `version` property in the `moduleConfig` extension:
 
 [source,groovy]
 ----
-jar {
-    ...
-    modularity {
-        version = '2.3.4'
-    }
+moduleConfig {
+    version = '2.3.4'
     ...
 }
 ----

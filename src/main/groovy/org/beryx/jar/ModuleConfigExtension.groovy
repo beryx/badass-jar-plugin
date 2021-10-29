@@ -15,48 +15,47 @@
  */
 package org.beryx.jar
 
-import groovy.transform.Canonical
 import groovy.transform.CompileStatic
-import groovy.transform.TupleConstructor
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
 
 @CompileStatic
-class JarModularityExtension {
+class ModuleConfigExtension {
     private final Project project
     final Property<String> moduleInfoPath
     final Property<Boolean> multiRelease
     final Property<String> version
+    final Property<Integer> moduleInfoCompatibility
 
-    static class JarModularityData {
+    static class ModuleData {
         final String moduleInfoPath
         final boolean multiRelease
         final String version
+        final int moduleInfoCompatibility
 
-        JarModularityData(String moduleInfoPath, boolean multiRelease, String version) {
+        ModuleData(String moduleInfoPath, boolean multiRelease, String version, int moduleInfoCompatibility) {
             this.moduleInfoPath = moduleInfoPath
             this.multiRelease = multiRelease
             this.version = version
+            this.moduleInfoCompatibility = moduleInfoCompatibility
         }
     }
 
-    JarModularityExtension(Project project) {
-        this.project = project;
+    ModuleConfigExtension(Project project) {
+        this.project = project
 
         moduleInfoPath = project.objects.property(String)
-        moduleInfoPath.set('')
-
         multiRelease = project.objects.property(Boolean)
-        multiRelease.set(true)
-
         version = project.objects.property(String)
+        moduleInfoCompatibility = project.objects.property(Integer)
     }
 
-    JarModularityData getData() {
-        new JarModularityData(
-                moduleInfoPath.get(),
-                multiRelease.get(),
-                version.getOrElse(project.version as String)
+    ModuleData getData() {
+        new ModuleData(
+                moduleInfoPath.getOrElse(''),
+                multiRelease.getOrElse(true),
+                version.getOrElse(''),
+                moduleInfoCompatibility.getOrElse(9)
         )
     }
 }
