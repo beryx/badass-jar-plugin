@@ -23,24 +23,21 @@ import org.gradle.api.provider.Property
 class ModuleConfigExtension {
     private final Project project
     final Property<String> moduleInfoPath
-    final Property<Boolean> multiRelease
     final Property<String> version
-    final Property<Integer> moduleInfoCompatibility
+    final Property<Integer> multiReleaseVersion
     final Property<Boolean> neverCompileModuleInfo
 
     static class ModuleData {
         final String moduleInfoPath
-        final boolean multiRelease
         final String version
-        final int moduleInfoCompatibility
+        final int multiReleaseVersion
         final boolean neverCompileModuleInfo
 
-        ModuleData(String moduleInfoPath, boolean multiRelease,
-                   String version, int moduleInfoCompatibility, boolean neverCompileModuleInfo) {
+        ModuleData(String moduleInfoPath, String version,
+                   int multiReleaseVersion, boolean neverCompileModuleInfo) {
             this.moduleInfoPath = moduleInfoPath
-            this.multiRelease = multiRelease
             this.version = version
-            this.moduleInfoCompatibility = moduleInfoCompatibility
+            this.multiReleaseVersion = multiReleaseVersion
             this.neverCompileModuleInfo = neverCompileModuleInfo
         }
     }
@@ -49,18 +46,16 @@ class ModuleConfigExtension {
         this.project = project
 
         this.moduleInfoPath = project.objects.property(String)
-        this.multiRelease = project.objects.property(Boolean)
         this.version = project.objects.property(String)
-        this.moduleInfoCompatibility = project.objects.property(Integer)
+        this.multiReleaseVersion = project.objects.property(Integer)
         this.neverCompileModuleInfo = project.objects.property(Boolean)
     }
 
     ModuleData getData() {
         new ModuleData(
                 moduleInfoPath.getOrElse(''),
-                multiRelease.getOrElse(true),
                 version.getOrElse(''),
-                moduleInfoCompatibility.getOrElse(9),
+                multiReleaseVersion.getOrElse(-1),
                 neverCompileModuleInfo.getOrElse(false)
         )
     }

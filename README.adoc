@@ -42,7 +42,7 @@ To use the plugin, include the following in your build script:
 ----
 plugins {
     id 'java'
-    id 'org.beryx.jar' version '2.0.0-rc-3'
+    id 'org.beryx.jar' version '2.0.0-rc-4'
 }
 ----
 
@@ -51,8 +51,7 @@ The plugin uses an extension named `moduleConfig`. The sample below shows a few 
 ----
 moduleConfig {
     moduleInfoPath = 'src/main/module/module-info.java'
-    multiRelease = true
-    moduleInfoCompatibility = 9
+    multiReleaseVersion = 9
     version = project.version
 }
 ----
@@ -69,40 +68,27 @@ Therefore, you should use a Java 9+ toolchain whenever it's possible.
 
 The properties provided by the `moduleConfig` extension are described below.
 
-==== _multiRelease_ : enable/disable Multi-release JAR
-[purple]##default value: ## `true`
+==== _multiReleaseVersion_: create a Multi-release JAR with a specific version
+[purple]##default value: ## `-1` (the module-info.class is put in the root of the jar)
 
 Typically, a https://openjdk.java.net/projects/jigsaw/spec/sotms/#module-artifacts[modular jar]
 includes the `module-info.class` file in its root directory.
-This causes problems for some older tools, which incorrectly process the module descriptor as if it were a normal Java class.
-To provide the best backward compatibility, the plugin creates by default a
+This may cause problems with some older tools, which incorrectly process the module descriptor as if it were a normal Java class.
+To avoid this, you can create a
 https://openjdk.java.net/jeps/238#Modular-multi-release-JAR-files[modular multi-release jar]
-with the `module-info.class` file located in `META-INF/versions/9`, as shown below.
+with the `module-info.class` file located in `META-INF/versions/<number>`, as shown below.
 
 image:https://raw.githubusercontent.com/beryx/badass-jar-plugin/master/doc/multi-release-jar.png[multi-release-jar,548,200]
 
-You can prevent the creation of a multi-release jar by setting the `multiRelease` property to `false` in the `moduleConfig` extension:
+By setting the `multiReleaseVersion` property to a value greater than 0, the plugin will create a multi-release jar:
 
 [source,groovy]
 ----
 moduleConfig {
-    multiRelease = false
+    multiReleaseVersion = 9
     ...
 }
 ----
-
-==== _moduleInfoCompatibility_: configure module descriptor location
-[purple]##default value: ## `9`
-
-When creating a multi-release jar, the plugin puts by default the `module-info.class` file in the `META-INF/versions/9` folder, which means that any JVM with version >= 9 will handle this jar as modular. You can change this by setting the `moduleInfoCompatibility` property in the `moduleConfig` extension. For example, the code below instructs the plugin to put the module descriptor in the `META-INF/versions/11` folder.
-
-[source,groovy]
-----
-moduleConfig {
-    moduleInfoCompatibility = 11
-}
-----
-
 
 ==== _moduleInfoPath_: configure module-info.java location
 [purple]##default value: ## `src/main/java/module-info.java`
@@ -141,6 +127,9 @@ The following projects illustrate how to use this plugin to create modular jars 
 
 - https://github.com/beryx-gist/badass-jar-example-nqueens[badass-jar-example-nqueens]: a Java library for solving the N-Queens problem.
 - https://github.com/beryx-gist/badass-jar-example-nqueens-kotlin[badass-jar-example-nqueens-kotlin]: a Kotlin library for solving the N-Queens problem.
+
+=== Projects using badass-jar-plugin
+See https://github.com/beryx/badass-jar-plugin/wiki/Projects-using-badass-jar-plugin[this Wiki page].
 
 === Acknowledgements
 

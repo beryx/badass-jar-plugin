@@ -57,8 +57,8 @@ class JarTaskConfigurer {
         this.javaPluginExtension = project.extensions.getByType(JavaPluginExtension)
         this.mainSourceSet = javaPluginExtension.sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
         def targetBaseDir = mainSourceSet.java.destinationDirectory.asFile.get()
-        this.moduleInfoTargetDir = moduleData.multiRelease
-                ? new File(targetBaseDir, "META-INF/versions/$moduleData.moduleInfoCompatibility")
+        this.moduleInfoTargetDir = (moduleData.multiReleaseVersion > 0)
+                ? new File(targetBaseDir, "META-INF/versions/$moduleData.multiReleaseVersion")
                 : targetBaseDir
         this.moduleInfoJava = findModuleInfoJava()
     }
@@ -107,7 +107,7 @@ class JarTaskConfigurer {
 
             compileJava.include("**/module-info.java")
             compileJava.getDestinationDirectory().set(moduleInfoTargetDir)
-            compileJava.options.release.set(moduleData.moduleInfoCompatibility)
+            compileJava.options.release.set(moduleData.multiReleaseVersion > 0 ? moduleData.multiReleaseVersion : 9)
 
             LOGGER.debug("mainSourceSet: $mainSourceSet.java.srcDirs")
             LOGGER.debug("compileJava release: ${compileJava.options.release.getOrNull()}")
@@ -124,11 +124,8 @@ class JarTaskConfigurer {
             def classesTask = project.tasks.getByName(JavaPlugin.CLASSES_TASK_NAME)
             classesTask.dependsOn(compileNonJpms)
         } else {
-            if(moduleConfigExtension.multiRelease.isPresent() && moduleData.multiRelease) {
-                LOGGER.info("multiRelease ignored because classes are compiled using Java $sourceCompatibilityJavaVersion")
-            }
-            if(moduleConfigExtension.moduleInfoCompatibility.isPresent() && JavaVersion.toVersion(moduleData.moduleInfoCompatibility) != sourceCompatibilityJavaVersion) {
-                LOGGER.info("moduleInfoCompatibility ignored because classes are compiled using Java $sourceCompatibilityJavaVersion")
+            if((moduleData.multiReleaseVersion > 0) && JavaVersion.toVersion(moduleData.multiReleaseVersion) != sourceCompatibilityJavaVersion) {
+                LOGGER.info("multiReleaseVersion ignored because classes are compiled using Java $sourceCompatibilityJavaVersion")
             }
         }
     }
@@ -177,8 +174,8 @@ class JarTaskConfigurer {
         LOGGER.debug "Setting module version to $moduleData.version"
         byte[] clazz = ModuleInfoCompiler.compileModuleInfo( module, null, moduleData.version)
         LOGGER.debug "Module info compiled: $clazz.length bytes"
-        LOGGER.debug "multiRelease = $moduleData.multiRelease"
-        if(moduleData.multiRelease) {
+        LOGGER.debug "multiReleaseVersion = $moduleData.multiReleaseVersion"
+        if(moduleData.multiReleaseVersion > 0) {
             jarTask.manifest.attributes('Multi-Release': true)
         }
         def moduleDescriptor = new File(moduleInfoTargetDir, 'module-info.class')
