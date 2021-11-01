@@ -178,6 +178,7 @@ class JarTaskConfigurer {
         if(moduleData.multiReleaseVersion > 0) {
             jarTask.manifest.attributes('Multi-Release': true)
         }
+        moduleInfoTargetDir.mkdirs()
         def moduleDescriptor = new File(moduleInfoTargetDir, 'module-info.class')
         LOGGER.info "Writing module descriptor into $moduleDescriptor"
         moduleDescriptor.withOutputStream { it.write(clazz) }
