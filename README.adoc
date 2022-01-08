@@ -42,7 +42,7 @@ To use the plugin, include the following in your build script:
 ----
 plugins {
     id 'java'
-    id 'org.beryx.jar' version '2.0.0-rc-4'
+    id 'org.beryx.jar' version '2.0.0'
 }
 ----
 
@@ -121,6 +121,21 @@ moduleConfig {
 }
 ----
 
+==== _neverCompileModuleInfo_: always use JavaParser and ASM to assemble the module descriptor
+[purple]##default value: ## `false`
+
+By default, if the version of your java toolchain is greater than 8, the plugin uses the java compiler to assemble a module descriptor from the `module-info.java` file.
+In some cases this may fail because the plugin is not able to determine all the compiler and jvm settings required for a JPMS build.
+A typical example is a project that uses Kotlin. In this case, you can set `neverCompileModuleInfo` to `true` in order to instruct the plugin to create the module descriptor using the JavaParser and the ASM library instead of the compiler.
+
+[source,groovy]
+----
+moduleConfig {
+    neverCompileModuleInfo = true
+    ...
+}
+----
+
 === Examples
 
 The following projects illustrate how to use this plugin to create modular jars targeted to pre-Java 9 releases:
@@ -130,6 +145,13 @@ The following projects illustrate how to use this plugin to create modular jars 
 
 === Projects using badass-jar-plugin
 See https://github.com/beryx/badass-jar-plugin/wiki/Projects-using-badass-jar-plugin[this Wiki page].
+
+
+=== Alternatives
+
+Instead of this plugin you can use the https://github.com/java9-modularity/gradle-modules-plugin[gradle-modules-plugin] with the
+https://github.com/java9-modularity/gradle-modules-plugin#separate-compilation-of-module-infojava[modularity.mixedJavaRelease] option.
+Choose the solution that best suits your needs.
 
 === Acknowledgements
 
